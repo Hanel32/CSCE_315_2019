@@ -3,6 +3,8 @@ Python implementation of IMDB from scratch.
 
 ## Just to make a scenario:
 >tablename := "Ships"\
+>row_attribute_name_string := "Age"\
+>row_key := "1234"\
 >Table := self.tables[tablename]\
 >Row := self.tables[tablename][row_key]\
 >Row attribute := self.tables[tablename][row_key][attribute_name_string]
