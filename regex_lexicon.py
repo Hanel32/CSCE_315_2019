@@ -256,10 +256,130 @@ class Lexer(object):
     def delete(self, line):
         print("TODO! DELETE")
         
+    #----------------------------------------------------------------------------------------------------------------------------
+
+    # Evaluates a condition and returns the bool result (condition must be form of "operand operator operand", so like 6 > 10)
+    def evaluateCondition(self, condition, tableToCheckFrom, tableEntry) :
+
+        entryAttrib = self.tables[tableToCheckFrom][tableEntry][condition[0]]
+
+        # determines if we're comparing a string literal or a number
+        isNumber = False
+        originalCommand = condition[2]
+
+        # Removes quotations from the string literal, need be, and also converts to number if needed (only works for ints)
+        if type(condition[2]) != float:
+            for x in range(len(condition)):
+                condition[x] = condition[x].replace('\"','')
+            if condition[2].isdigit():
+                condition[2] = float(condition[2])
+
+        # if nothing changed, then there were no quotes and we have a number (might have to check whether to cast to int or float?)
+        if entryAttrib.isdigit():
+            entryAttrib = float(entryAttrib)
+
+        if condition[1] == "==" :
+            if entryAttrib == condition[2]:
+                return True
+        elif condition[1] == "!=" :
+            if entryAttrib != condition[2]:
+                return True
+        elif condition[1] == "<" :
+            if entryAttrib < condition[2]:
+                return True
+        elif condition[1] == ">" :
+            if entryAttrib > condition[2]:
+                return True
+        elif condition[1] == "<=" :
+            if entryAttrib <= condition[2]:
+                return True
+        elif condition[1] == ">=" :
+            if entryAttrib >= condition[2]:
+                return True
+
+        return False
+
+    # If any of the conditions return true, then return true for the whole list
+    def evaluateOrList(self, orList, tableToCheckFrom, tableEntry) :
+        for condition in orList:
+            if self.evaluateCondition(condition, tableToCheckFrom, tableEntry):
+                return True
+        return False
+
+    # Return false if any of the conditions are not true
+    def evaluateAndList(self, andList, tableToCheckFrom, tableEntry) :
+        for condition in andList:
+            if not self.evaluateCondition(condition, tableToCheckFrom, tableEntry):
+                return False
+        return True
+
+    #----------------------------------------------------------------------------------------------------------------------------
+
     # Select some subset of the table
     def select(self, line):
         print("TODO! SELECT")
+        print(line)
+
+        # make lists of the conditions we need to evaluate
+        conditionListAnd = []
+        conditionListOr = []
+
+        # since we're making a new table, this makes sure it doesn't exist yet
+        if line[0].lower() in self.tables.keys():
+            print("Error, table already exists")
+            return
         
+        # sets up the new table
+        self.tables[line[0].lower()] = {}
+
+        # starting at the point after the "select" call, finds the end of the condition commands
+        i = 3
+        while True:
+            if line[i][-1] == ')':
+                i += 1
+                break
+            i += 1
+        
+        # gets just the commands to process
+        commands = line[3:i]
+
+        # removes the parentheses
+        commands[0] = commands[0][1:]
+        commands[-1] = commands[-1][:-1]
+
+        # puts pairs of conditions into respective lists
+        i = 0
+        for token in commands:
+            if token == "&&" :
+                conditionListAnd.append(commands[i-3:i])
+                conditionListAnd.append(commands[i+1:i+4])
+            elif token == "||" :
+                #conditionListOr.append(commands[i-3:i])
+                conditionListOr.append(commands[i+1:i+4])
+            i += 1
+
+        # gets the table to search from, which should be the last element
+        tableToCheckFrom = line[-1][:-1]
+        print("tableToCheckFrom: " + tableToCheckFrom)
+
+        # TODO Somewhere in here, we need to work back in the thing where we change the number strings to actual numbers
+
+        print(commands)
+        print(conditionListAnd)
+        print(conditionListOr)
+
+        # iterate through the table we're searching from
+        for tableEntry in self.tables[tableToCheckFrom]:
+            # if there was more than one condition to evaluate, then pass to the other functions
+            if len(conditionListOr) != 0 or len(conditionListAnd) != 0:
+                if self.evaluateOrList(conditionListOr, tableToCheckFrom, tableEntry) or self.evaluateAndList(conditionListAnd, tableToCheckFrom, tableEntry):
+                    print("insert this item into the table:")
+                    print(tableEntry)
+            else:
+                if self.evaluateCondition(commands, tableToCheckFrom, tableEntry):
+                    print("insert this item into the table:")
+                    print(tableEntry)                
+
     # Projection
     def project(self, line):
         print("TODO! PROJECT")
@@ -296,14 +416,12 @@ class Lexer(object):
         
     # Directs query commands to their correct function.
     def parse_query(self, line):
-        if line[0].lower() == "select" : 
+        if line[2].lower() == "select" : 
             self.select(line)     
-        if line[0].lower() == "project": 
+        if line[2].lower() == "project": 
             self.project(line)       
-        if line[0].lower() == "rename" : 
+        if line[2].lower() == "rename" : 
             self.rename(line)      
-        if line[1] == "<-"             : 
-            self.relational(line)
     
     # Constructor for the class, and where to put class variables.
     def __init__(self, filename):
