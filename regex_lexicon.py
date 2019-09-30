@@ -208,6 +208,13 @@ class Lexer(object):
         
     # Updates some set of the values that matches a criterion to a given value.
     def update(self, line):
+        # Checks that the requested table exists
+	      table_name = line[2]
+            if table_name not in self.tables.keys():
+                print("ERROR! Attempting to update a null table: " + str(table_name) + "!")
+                return
+              
+            
         print("UPDATE")
         
     # Inserting values into a table
@@ -254,8 +261,18 @@ class Lexer(object):
     
     # Delete from a table some subset that matches a condition.
     def delete(self, line):
-        print("TODO! DELETE")
+        # Checks that the requested table exists
+	      table_name = line[2]
+        if table_name not in self.tables.keys():
+            print("ERROR! Attempting to delete a null table: " + str(table_name) + "!")
+            return
         
+        #
+        table = self.tables[table_name]
+        condition = line[4:]
+        for tableEntry in table
+            if evaluateCondition(condition, table, tableEntry) :
+                self.table[tableEntry] = NULL
     #----------------------------------------------------------------------------------------------------------------------------
 
     # Evaluates a condition and returns the bool result (condition must be form of "operand operator operand", so like 6 > 10)
