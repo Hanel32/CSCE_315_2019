@@ -209,14 +209,40 @@ class Lexer(object):
     # Updates some set of the values that matches a criterion to a given value.
     def update(self, line):
         # Checks that the requested table exists
-	      table_name = line[2]
-            if table_name not in self.tables.keys():
-                print("ERROR! Attempting to update a null table: " + str(table_name) + "!")
-                return
-              
-            
-        print("UPDATE")
+	table_name = line[1]
+        if table_name not in self.tables.keys():
+            print("ERROR! Attempting to update a null table: " + str(table_name) + "!")
+            return
         
+	# Obtains table value
+	table = self.tables[table_name]
+        
+	# Obtains end place of attribute_name
+	i = 6
+	while True:
+            if line[i].lower() == "where":
+	    	break
+            i += 1
+	
+	attribute_name = line[3:i]
+	
+	# Removes commas from attribute_name
+	for x in range(len(attribute_name)):
+	    attribute_name[x] = attribute_name[x].replace(",","")
+	
+        condition = line[i+1]
+	
+	# Iterates through table, updating any entry that meets the condition
+        temp_table = {}
+	for i in range(0,len(attribute_name),3):
+	    lop = attribute_name[i]
+	    mop = attribute_name[i+1]
+            rop = attribute_name[i+2]
+	    for row_id in table.keys():
+	        for attr_name in table[row_id].keys()
+		    if attr_name == lop
+			table[row][attr_name] = rop
+		
     # Inserting values into a table
     def insert(self, line):
         table_name = line[2]
@@ -262,17 +288,19 @@ class Lexer(object):
     # Delete from a table some subset that matches a condition.
     def delete(self, line):
         # Checks that the requested table exists
-	      table_name = line[2]
+	table_name = line[2]
         if table_name not in self.tables.keys():
             print("ERROR! Attempting to delete a null table: " + str(table_name) + "!")
             return
         
-        #
+        # Obtains table value and condition
         table = self.tables[table_name]
         condition = line[4:]
-        for tableEntry in table
-            if evaluateCondition(condition, table, tableEntry) :
-                self.table[tableEntry] = NULL
+	
+	# Iterates through table, deleting any entry that meets the condition
+        for tableEntry in table:
+            if evaluateCondition(condition, table, tableEntry):
+                self.table[tableEntry] = None
     #----------------------------------------------------------------------------------------------------------------------------
 
     # Evaluates a condition and returns the bool result (condition must be form of "operand operator operand", so like 6 > 10)
