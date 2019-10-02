@@ -381,12 +381,219 @@ class Lexer(object):
                     print(tableEntry)                
 
     # Projection
-    def project(self, line):
-        print("TODO! PROJECT")
+        def project(self, line):
+        #print("project")
+        #print(line)
+
+        #If this is the 'base' or project is the final function call, we want to know due to recursive calling
+        if(line[1] == '<-'):
+            new_name = line[0].lower()
+        # starting at the point after the "project" call, finds the end of the condition commands
+            i = 3
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+                
+                # gets just the commands to process
+            attributes = line[3:i]
+        else:
+            #if we are not setting the final table, 
+            new_name = 'temp'
+            i = 1
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+                
+                # gets just the commands to process
+            attributes = line[1:i]
+        #else if(line[0] == "project" || line[0] == "(project"):
+            #If this is a recursive call, we have to name our 
+
+        # removes the parentheses and commas
+        for x in range(len(attributes)):
+            attributes[x] = attributes[x].replace('(','')
+            attributes[x] = attributes[x].replace(')','')
+            attributes[x] = attributes[x].replace(',','')
+
+
+        #Commands are what we columns we want from the original table
+        #print(attributes)
+
+        #Now we have the columns, we need to find the table to take them from. If it is a basic call, it should be the next item
+        #If the next item is not a table, then we need to recursively call that function e.g select
+        nextInLine = line[i]
+        #Remove just incase there are any
+        nextInLine = nextInLine.replace('(','')
+        nextInLine = nextInLine.replace(')','')
+        nextInLine = nextInLine.replace(';','')
+        #print(nextInLine)
+
+        if nextInLine not in self.tables.keys():
+            #NextInLine = parse_commands(line[i:])'
+            if(nextInLine == 'project'):
+                nextInLine = self.project(line[i:])
+            elif(nextInLine == 'select'):
+                nextInLine = self.select(line[i:])
+            elif(nextInLine == 'rename'):
+                nextInLine = self.rename(line[i:])
+            else:
+                return
+
+            #Setup our new table
+        #print("Data from")
+        #print(nextInLine)
+        #print(new_name)
+        self.tables[new_name] = {}
+        self.schemas[new_name] = {} 
+
+        #attributes
+        types      = []
+        keys       = []
         
+        j = 0
+        while j < len(attributes):
+            for x in range(len(self.schemas[nextInLine]["attributes"])):
+                if(attributes[j] == self.schemas[nextInLine]["attributes"][x]):
+                    types.append(self.schemas[nextInLine]["types"][x])
+            j += 1 
+
+        #Setup primary keys as well
+        j = 0
+        while j < len(attributes):
+            for x in range(len(self.primary_keys[nextInLine])):
+                if(attributes[j] == self.primary_keys[nextInLine][x]):
+                    keys.append(self.primary_keys[nextInLine][x])
+            j += 1
+
+        #Setting values for our table
+        self.schemas[new_name]["attributes"] = attributes
+        self.schemas[new_name]["types"]      = types
+        self.primary_keys[new_name]          = keys
+        #print(attributes)
+        #print(types)
+        #print(keys)
+
+        #Now we need to move actual data from our original table to this table
+        # STILL NEED TODO 
+        for x in self.tables[nextInLine].keys():
+            values = []
+            for y in range(len(attributes)):
+                values.append(self.tables[nextInLine][x][attributes[y]])
+            
+            schema = self.schemas[new_name]
+            key_rules   = self.primary_keys[new_name]
+            primary_key = self.generate_key(key_rules, schema["attributes"], values)
+
+            self.tables[new_name][primary_key] = {}
+            # Insert the data into the record, indexed by variable name.
+            for varname, val in zip(self.schemas[new_name]["attributes"], values):
+                self.tables[new_name][primary_key][varname] = val
+            
+        return new_name
+
+    
     # Renames a table
     def rename(self, line):
-        print("TODO! RENAME")
+        #print("rename")
+        #print(line)
+
+        #If this is the 'base' or project is the final function call, we want to know due to recursive calling
+        if(line[1] == '<-'):
+            new_name = line[0].lower()
+        # starting at the point after the "project" call, finds the end of the condition commands
+            i = 3
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+                
+                # gets just the commands to process
+            attributes = line[3:i]
+        else:
+            #if we are not setting the final table, 
+            new_name = 'temp'
+            i = 1
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+                
+                # gets just the commands to process
+            attributes = line[1:i]
+
+        # removes the parentheses and commas
+        for x in range(len(attributes)):
+            attributes[x] = attributes[x].replace('(','')
+            attributes[x] = attributes[x].replace(')','') 
+            attributes[x] = attributes[x].replace(',','')
+
+        #Commands are what we columns we want from the original table
+        #print(attributes)
+
+        nextInLine = line[i]
+        #Remove just incase there are any
+        nextInLine = nextInLine.replace('(','')
+        nextInLine = nextInLine.replace(')','')
+        nextInLine = nextInLine.replace(';','')
+        #print(nextInLine)
+        if nextInLine not in self.tables.keys():
+            #NextInLine = parse_commands(line[i:])'
+            if(nextInLine == 'project'):
+                nextInLine = self.project(line[i:])
+            elif(nextInLine == 'select'):
+                nextInLine = self.select(line[i:])
+            elif(nextInLine == 'rename'):
+                nextInLine = self.rename(line[i:])
+            else:
+                return
+        #Should not need 'else' if recursive call works
+        
+        #Setup our new table 
+        #attributes
+        types      = []
+        keys       = []
+
+        orig_primary_keys = []
+        for x in range(len(self.primary_keys[nextInLine])):
+            orig_primary_keys.append(self.primary_keys[nextInLine][x])
+        
+        orig_attributes = self.schemas[nextInLine]["attributes"]
+        #print(orig_attributes)
+        #Getting the types to match the attributes from original table
+        for x in range(len(self.schemas[nextInLine]["attributes"])):
+            types.append(self.schemas[nextInLine]["types"][x])
+            if(self.schemas[nextInLine]["attributes"][x] in orig_primary_keys): 
+                keys.append(x)
+        
+        #Setup primary keys as well
+        for x in range(len(keys)):
+            keys[x] = attributes[keys[x]]
+
+        #Setting values for our table
+
+
+        self.schemas[nextInLine]["attributes"] = attributes
+        self.schemas[nextInLine]["keys"] = keys
+        #Now we need to move actual data from our original table to this table
+        # STILL NEED TODO
+
+        for x in list(self.tables[nextInLine].copy()):
+            i = 0
+            for y in self.tables[nextInLine][x].copy():
+                value = self.tables[nextInLine][x][y]
+                del self.tables[nextInLine][x][y]
+                self.tables[nextInLine][x][attributes[i]] = value
+                i += 1
+        
+        self.tables[new_name] = self.tables[nextInLine]
+
+        return new_name
         
     # Parses a relational query
     def relational(self, line):
