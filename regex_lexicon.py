@@ -473,7 +473,57 @@ class Lexer(object):
             return " ".join(line)
         # Handle renaming
         elif expr == "rename":
-            return " ".join(line)
+        	# Get attribute list
+            i = 1
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+
+            attr_lst = line[1:i]
+            # Remove commas and parenthsis
+            attr_lst[0] = attr_lst[0][1:]
+            attr_lst[-1] = attr_lst[-1][:-1]
+            attr_lst = " ".join(attr_lst).replace(",", "")
+            attr_lst = attr_lst.split(" ")
+            # Evaluate atomic expression
+            atom = line[i:]
+            atom = self.evaluateAtomic(atom)
+
+            # Check if source is a table
+            if atom not in self.tables.keys():
+                print("ERROR! Source table does not exist")
+                return
+
+            self.schemas[tmp_name]["attributes"] = attr_lst
+            self.primary_keys[tmp_name] = attr_lst
+
+            if len(self.schemas[atom]["attributes"]) != len(self.schemas[tmp_name]["attributes"]):
+            	print("ERROR! Number of attributes don't match")
+            	return
+
+             # Get list of attribute types
+            type_lst = []
+            for atr, typ in zip(self.schemas[tmp_name]["attributes"], self.schemas[atom]["types"]):
+            	if atr in attr_lst:
+            		type_lst.append(typ)
+            self.schemas[tmp_name]["types"] = type_lst
+
+            # Write dummy insert request containing entry info to pass to insert
+            for row in self.tables[atom]:
+                dummy_line = [' ']*(5+len(attr_lst))
+                dummy_line[2] = tmp_name
+                i = 5
+                for attr in self.schemas[atom]["attributes"]:
+            	    dummy_line[i] = self.tables[atom][row][attr]
+            	    i = i+1
+
+                dummy_line[5] = "(\"" + dummy_line[5]
+                dummy_line[-1] = dummy_line[-1] + ");"
+                self.insert(dummy_line)
+
+            return tmp_name
         # Handle union
         elif '+' in line:
             return " ".join(line)
