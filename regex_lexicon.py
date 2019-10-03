@@ -279,11 +279,11 @@ class Lexer(object):
                 condition[2] = float(condition[2])
 
         #print("condition:")
-        # print(condition)
-        # print("tableEntry:")
-        # print(tableEntry)
-        # print("entryAttrib:")
-        # print(entryAttrib)
+        #print(condition)
+        #print("tableEntry:")
+        #print(tableEntry)
+        #print("entryAttrib:")
+        #print(entryAttrib)
 
         # if nothing changed, then there were no quotes and we have a number (might have to check whether to cast to int or float?)
         if entryAttrib.isdigit():
@@ -349,21 +349,35 @@ class Lexer(object):
         commandsToProcess = commands.copy()
 
         # remove parentheses
-        commandsToProcess[0] = commandsToProcess[0][1:]
-        commandsToProcess[-1] = commandsToProcess[-1][:-1]
+        #commandsToProcess[0] = commandsToProcess[0][1:]
+        #commandsToProcess[-1] = commandsToProcess[-1][:-1]
 
-        #print("commandsToProcess:")
+        #print("commandsToProcess before:")
         #print(commandsToProcess)
+
+        for token in range(len(commandsToProcess)):
+            if type(commandsToProcess[token]) != bool:
+                commandsToProcess[token] = commands[token].replace('(','').replace(')','')
+            if commandsToProcess[token] == '':
+                commandsToProcess = commandsToProcess[:token]
+                break
+
+        # print("commandsToProcess after:")
+        # print(commandsToProcess)
 
         if not singleEvaluation:
             i = 0
             # go through and evaluate the strings of 3 items to true or false
             for token in commandsToProcess:
                 if token == "&&" or token == "||":
-                    if type(commandsToProcess[i-1]) != bool: # if it is a bool, I don't need to change it right now
+                    if type(commandsToProcess[i-1]) != bool and type(commandsToProcess[i-3]) != bool: # if it is a bool, I don't need to change it right now
                         # evaluate the string of three things and replace with output bool
+                        #print("commandsToProcess before:")
+                        #print(commandsToProcess)
                         boolResult = self.evaluateCondition(commandsToProcess[i-3:i], tableToCheckFrom, tableEntry)
                         commandsToProcess[i-3] = boolResult
+                        #print("commandsToProcess after:")
+                        #print(commandsToProcess)
                         #print("boolResult:")
                         #print(boolResult)
                 i += 1
@@ -385,13 +399,20 @@ class Lexer(object):
         # We now have the commands in the form of something like "True || False && True"
         
         # The current T/F state of the line from left to right
+        # print("commandsToProcess[0]:")
+        # print(commandsToProcess[0])
         boolStateFromLeft = commandsToProcess[0]
+
+        #print("boolStateFromLeft START:")
+        #print(boolStateFromLeft)
 
         for token in commandsToProcess:
             if token == "&&":
                 boolStateFromLeft = (boolStateFromLeft and commandsToProcess[commandsToProcess.index(token) + 1])
             elif token == "||":
                 boolStateFromLeft = (boolStateFromLeft or commandsToProcess[commandsToProcess.index(token) + 1])
+            #print("boolStateFromLeft:")
+            #print(boolStateFromLeft)
 
         # print("commandsToProcess:")
         # print(commandsToProcess)
@@ -413,6 +434,8 @@ class Lexer(object):
     # You would get just the "select (aname == name && akind != kind) 'tablename'" part, and pass that into THIS function
     # This function does not currently have the capability of resolving "a * animals" to a table, I feel like doing that
     # first and replacing that part of the table with the new table name would be the best course of action
+
+    # TODO doesn't seem to work for nested parentheses
     def processSelectBlock(self, tableToInsertTo, selectBlock, tableToCheckFrom):
         #print(selectBlock)
         #print(tableToInsertTo)
@@ -420,7 +443,7 @@ class Lexer(object):
 
         # This should contain only the commands to parse (parentheses included)
         commandsOriginal = selectBlock.copy()
-        print(commandsOriginal)
+        #print(commandsOriginal)
 
         # Find where the parentheses are
         i = 0
@@ -449,7 +472,7 @@ class Lexer(object):
             indexesWithOpenParenthesis = indexesWithOpenParenthesisOriginal.copy()
             indexesWithCloseParenthesis = indexesWithCloseParenthesisOriginal.copy()
 
-            while len(indexesWithOpenParenthesis) > 0 and len(indexesWithCloseParenthesis) > 0:
+            while len(indexesWithOpenParenthesis) > 0 or len(indexesWithCloseParenthesis) > 0:
                 closeParenthesisIndex = self.findIndexOfCloseParenthesis(indexesWithCloseParenthesis, max(indexesWithOpenParenthesis))
                 if closeParenthesisIndex == -1:
                     innerCommandResult = self.processInnerCommands(commands[max(indexesWithOpenParenthesis):], tableToCheckFrom, tableEntry)
@@ -460,15 +483,14 @@ class Lexer(object):
                 # Gets rid of the other elements I no longer need, this also auto removes parentheses
                 indexingVar = max(indexesWithOpenParenthesis) + 1
                 while indexingVar <= closeParenthesisIndex:
-                    #print("indexingVar:")
-                    #print(indexingVar)
                     commands.pop(max(indexesWithOpenParenthesis) + 1) #since you keep popping, you need to keep popping the same index
-                    #print("commands:")
-                    #print(commands)
                     indexingVar += 1
 
                 indexesWithOpenParenthesis.pop(indexesWithOpenParenthesis.index(max(indexesWithOpenParenthesis)))
-                indexesWithCloseParenthesis.pop(indexesWithCloseParenthesis.index(closeParenthesisIndex))
+
+                # Used because sometimes (when a token is like "thing))") the index is -1 to indicate that there is no index with a cp
+                if closeParenthesisIndex != -1:
+                    indexesWithCloseParenthesis.pop(indexesWithCloseParenthesis.index(closeParenthesisIndex))
 
             boolStateFromLeft = commands[0]
 
@@ -487,11 +509,6 @@ class Lexer(object):
     # dogs <- select (kind == "dog") animals;
     def select(self, line):
         print("TODO! SELECT")
-        #print(line)
-
-        # make lists of the conditions we need to evaluate
-        # conditionListAnd = []
-        # conditionListOr = []
 
         # since we're making a new table, this makes sure it doesn't exist yet
         if line[0].lower() in self.tables.keys():
@@ -499,9 +516,7 @@ class Lexer(object):
             return
         
         # sets up the new table
-        self.tables[line[0].lower()] = {}
-        #print("The table to make: " + line[0].lower())
-
+        self.tables[line[0].lower()] = {}  
         self.processSelectBlock(line[0].lower(), line[3:-1], line[-1][:-1]) # last split is to get rid of semicolon
 
         print("\n~~~~~~~~~~~~<" + line[0].lower() + ">~~~~~~~~~~~")
@@ -509,62 +524,6 @@ class Lexer(object):
         for key in table:
             print(str(table[key]))
         print("~~~~~~~~~~~~</" + str(line[0].lower()) + ">~~~~~~~~~~\n")
-
-        # # starting at the point after the "select" call, finds the end of the condition commands
-        # i = 3
-        # while True:
-        #     if line[i][-1] == ')':
-        #         i += 1
-        #         break
-        #     i += 1
-        
-        # # gets just the commands to process
-        # commands = line[3:i]
-
-        # # removes the parentheses
-        # commands[0] = commands[0][1:]
-        # commands[-1] = commands[-1][:-1]
-
-        # hasNestedCondition = False
-
-        # # puts pairs of conditions into respective lists
-        # i = 0
-        # for token in commands:
-        #     # if token == "&&" or token == "||" :
-        #     #     hasNestedCondition = True
-        #     if token == "&&" :
-        #         conditionListAnd.append(commands[i-3:i])
-        #         conditionListAnd.append(commands[i+1:i+4])
-        #     elif token == "||" :
-        #         #conditionListOr.append(commands[i-3:i])
-        #         conditionListOr.append(commands[i+1:i+4])
-        #     i += 1
-
-        # # gets the table to search from, which should be the last element
-        # tableToCheckFrom = line[-1][:-1]
-        # print("tableToCheckFrom: " + tableToCheckFrom)
-
-        # # TODO Somewhere in here, we need to work back in the thing where we change the number strings to actual numbers
-
-        # print(commands)
-        # print(conditionListAnd)
-        # print(conditionListOr)
-
-        # # iterate through the table we're searching from
-        # for tableEntry in self.tables[tableToCheckFrom]:
-        #     # if there was more than one condition to evaluate, then pass to the other functions
-        #     if len(conditionListOr) != 0 or len(conditionListAnd) != 0:
-        #         if self.evaluateOrList(conditionListOr, tableToCheckFrom, tableEntry) or self.evaluateAndList(conditionListAnd, tableToCheckFrom, tableEntry):
-        #             # insert the item into the table
-        #             self.tables[line[0].lower()][tableEntry] = self.tables[tableToCheckFrom][tableEntry]
-                    
-        #     else:
-        #         if self.evaluateCondition(commands, tableToCheckFrom, tableEntry):
-        #             # insert the item into the table
-        #             self.tables[line[0].lower()][tableEntry] = self.tables[tableToCheckFrom][tableEntry]
-
-        # print("The table just made: " + line[0].lower())
-        # print(self.tables[line[0].lower()])
 
     # TODO Brenden code end
     # ---------------------------------------------------------------------------------------------------------------------------------------------------------------

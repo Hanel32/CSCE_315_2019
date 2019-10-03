@@ -1,15 +1,24 @@
 CREATE TABLE animals (name VARCHAR(20), kind VARCHAR(8), years INTEGER) PRIMARY KEY (name, kind);
 
 INSERT INTO animals VALUES FROM ("Joe", "cat", 4);
+INSERT INTO animals VALUES FROM ("Garfband", "cat", 8);
+
 INSERT INTO animals VALUES FROM ("Spot", "dog", 10);
 INSERT INTO animals VALUES FROM ("Snoopy", "dog", 3);
+INSERT INTO animals VALUES FROM ("Joe", "dog", 6);
+INSERT INTO animals VALUES FROM ("Pudge", "dog", 1);
+
 INSERT INTO animals VALUES FROM ("Tweety", "bird", 1);
 INSERT INTO animals VALUES FROM ("Joe", "bird", 2);
+INSERT INTO animals VALUES FROM ("Woody", "bird", 3);
 
 SHOW animals;
 
+cats_and_old_dogs <- select (kind == "cat" || (kind == "dog" && years >= 10)) animals;
 joes <- select (name == "Joe" && (kind == "cat" || kind == "bird")) animals;
-old_dogs_and_all_cats <- select (kind == "dog" && years >= 10 || kind == "cat") animals;
+not_joe_and_young_dogs <- select (name != "Joe" && (years < 10 && kind == dog)) animals;
+old_dogs_and_all_birds <- select (kind == "dog" && years >= 10 || kind == "bird") animals;
+dogs_that_arent_middle_aged_and_all_birds <- select (kind == "bird" || (kind == "dog" && (years < 4 || years > 6))) animals;
 
 cats_or_dogs <- dogs + (select (kind == "cat") animals);
 
