@@ -217,9 +217,12 @@ class Lexer(object):
             print("ERROR! Attempting to insert into a null table: " + str(table_name) + "!")
             return
         
+        # Handle relational queries
         if line[5] == "RELATION":
-            print("!!! TODO !!! Relational query insertion not implemented.")
+        	# Solve relation
             self.relational(line)
+
+            # Clean up temporary tables
             entries = []
             for entry in self.tables.keys():
             	if "tmp" in entry:
@@ -396,8 +399,11 @@ class Lexer(object):
     def rename(self, line):
         print("TODO! RENAME")
 
+    # Evaluates an expression
     def evaluateExpr(self, line):
         expr = line[0]
+
+        # Make a temporary table with a unique name
         tmp_name = "tmp1"
         i = 1
         while tmp_name in self.tables.keys():
@@ -406,6 +412,8 @@ class Lexer(object):
         self.tables[tmp_name] = {}
         self.schemas[tmp_name] = {}
         self.primary_keys[tmp_name] = {}
+
+        # Handle projections
         if expr == "project":
         	# Get attribute list
             i = 1
@@ -435,15 +443,18 @@ class Lexer(object):
             self.schemas[tmp_name]["types"] = type_lst
             self.primary_keys[tmp_name] = attr_lst
 
+            # Check if source is a table
             if not atom in self.tables.keys():
                 print("ERROR! Source table does not exist")
                 return
 
+            # Make sure attributes match
             for attr in attr_lst:
                 if not attr in self.schemas[atom]["attributes"]:
                     print("ERROR! Attribute", attr, "does not exist")
                     return
-        
+            
+            # Write dummy insert request containing entry info to pass to insert
             for row in self.tables[atom]:
                 dummy_line = [' ']*(5+len(attr_lst))
                 dummy_line[2] = tmp_name
@@ -457,21 +468,29 @@ class Lexer(object):
                 self.insert(dummy_line)
 
             return tmp_name
+        # Handle selections
         elif expr == "select":
             return " ".join(line)
+        # Handle renaming
         elif expr == "rename":
             return " ".join(line)
+        # Handle union
         elif '+' in line:
             return " ".join(line)
+        # Handle difference
         elif '-' in line:
             return " ".join(line)
+        # Handle product
         elif '*' in line:
             return " ".join(line)
+        # Handle natural join
         elif '&' in line:
             return " ".join(line)
+        # Handle atomic expression
         else:
         	return self.evaluateAtomic(line)
 
+    # Evaluates an atomic expression
     def evaluateAtomic(self, line):
         line = " ".join(line).replace(";","")
         if '(' in line:
@@ -487,7 +506,10 @@ class Lexer(object):
         expr = line[6:]
         table = line[2]
 
-        name = self.evaluateExpr(expr)
+        # Evaluate the relation
+        name = self.evaluateExpr(expr)	# Name of the temporary table that has the solution
+
+        # Copy table from temporary table by writing dummy insert requests
         for row in self.tables[name]:
             dummy_line = [' ']*(5+len(self.schemas[name]["attributes"]))
             dummy_line[2] = table
