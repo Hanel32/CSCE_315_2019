@@ -217,8 +217,20 @@ class Lexer(object):
             print("ERROR! Attempting to insert into a null table: " + str(table_name) + "!")
             return
         
+        # Handle relational queries
         if line[5] == "RELATION":
-            print("!!! TODO !!! Relational query insertion not implemented.")
+        	# Solve relation
+            self.relational(line)
+
+            # Clean up temporary tables
+            entries = []
+            for entry in self.tables.keys():
+            	if "tmp" in entry:
+            		entries.append(entry)
+            for entry in entries:
+            	del self.tables[entry]
+            	del self.schemas[entry]
+            	del self.primary_keys[entry]
         else:
             # Grab the values to be inserted
             values = line[5:]
@@ -318,7 +330,6 @@ class Lexer(object):
     # Select some subset of the table
     def select(self, line):
         print("TODO! SELECT")
-        print(line)
 
         # make lists of the conditions we need to evaluate
         conditionListAnd = []
@@ -380,17 +391,138 @@ class Lexer(object):
                     print("insert this item into the table:")
                     print(tableEntry)                
 
-    # Projection
+    # ion
     def project(self, line):
         print("TODO! PROJECT")
         
     # Renames a table
     def rename(self, line):
         print("TODO! RENAME")
+
+    # Evaluates an expression
+    def evaluateExpr(self, line):
+        expr = line[0]
+
+        # Make a temporary table with a unique name
+        tmp_name = "tmp1"
+        i = 1
+        while tmp_name in self.tables.keys():
+        	i += 1
+        	tmp_name = "tmp" + str(i)
+        self.tables[tmp_name] = {}
+        self.schemas[tmp_name] = {}
+        self.primary_keys[tmp_name] = {}
+
+        # Handle projections
+        if expr == "project":
+        	# Get attribute list
+            i = 1
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+
+            attr_lst = line[1:i]
+            # Remove commas and parenthsis
+            attr_lst[0] = attr_lst[0][1:]
+            attr_lst[-1] = attr_lst[-1][:-1]
+            attr_lst = " ".join(attr_lst).replace(",", "")
+            attr_lst = attr_lst.split(" ")
+            # Evaluate atomic expression
+            atom = line[i:]
+            atom = self.evaluateAtomic(atom)
+
+            # Get list of attribute types
+            type_lst = []
+            for atr, typ in zip(self.schemas[atom]["attributes"], self.schemas[atom]["types"]):
+            	if atr in attr_lst:
+            		type_lst.append(typ)
+
+            self.schemas[tmp_name]["attributes"] = attr_lst
+            self.schemas[tmp_name]["types"] = type_lst
+            self.primary_keys[tmp_name] = attr_lst
+
+            # Check if source is a table
+            if not atom in self.tables.keys():
+                print("ERROR! Source table does not exist")
+                return
+
+            # Make sure attributes match
+            for attr in attr_lst:
+                if not attr in self.schemas[atom]["attributes"]:
+                    print("ERROR! Attribute", attr, "does not exist")
+                    return
+            
+            # Write dummy insert request containing entry info to pass to insert
+            for row in self.tables[atom]:
+                dummy_line = [' ']*(5+len(attr_lst))
+                dummy_line[2] = tmp_name
+                i = 5
+                for attr in attr_lst:
+            	    dummy_line[i] = self.tables[atom][row][attr]
+            	    i = i+1
+
+                dummy_line[5] = "(\"" + dummy_line[5]
+                dummy_line[-1] = dummy_line[-1] + ");"
+                self.insert(dummy_line)
+
+            return tmp_name
+        # Handle selections
+        elif expr == "select":
+            return " ".join(line)
+        # Handle renaming
+        elif expr == "rename":
+            return " ".join(line)
+        # Handle union
+        elif '+' in line:
+            return " ".join(line)
+        # Handle difference
+        elif '-' in line:
+            return " ".join(line)
+        # Handle product
+        elif '*' in line:
+            return " ".join(line)
+        # Handle natural join
+        elif '&' in line:
+            return " ".join(line)
+        # Handle atomic expression
+        else:
+        	return self.evaluateAtomic(line)
+
+    # Evaluates an atomic expression
+    def evaluateAtomic(self, line):
+        line = " ".join(line).replace(";","")
+        if '(' in line:
+            line = line[1:len(line)-1]
+            line = line.split(" ")
+            return self.evaluateExpr(line)
+        else:
+        	return line
         
-    # Parses a relational query
+	# Parses a relational query
     def relational(self, line):
-        print("TODO! RELATIONAL")
+    	# Get basic info from line
+        expr = line[6:]
+        table = line[2]
+
+        # Evaluate the relation
+        name = self.evaluateExpr(expr)	# Name of the temporary table that has the solution
+
+        # Copy table from temporary table by writing dummy insert requests
+        for row in self.tables[name]:
+            dummy_line = [' ']*(5+len(self.schemas[name]["attributes"]))
+            dummy_line[2] = table
+            i = 5
+            for attr in self.schemas[name]["attributes"]:
+            	dummy_line[i] = self.tables[name][row][attr]
+            	i += 1
+
+            dummy_line[5] = "(\"" + dummy_line[5]
+            dummy_line[-1] = dummy_line[-1] + ");"
+            self.insert(dummy_line)
+
+        return
         
     # Directs parse commands to their correct function.
     def parse_command(self, line):
