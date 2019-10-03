@@ -571,7 +571,55 @@ class Lexer(object):
             return tmp_name
         # Handle difference
         elif '-' in line:
-            return " ".join(line)
+            line = " ".join(line)
+            i = line.find('-')
+            left = line[0:i-1]
+            right = line[i+2:len(line)-1]
+            lname = self.evaluateAtomic(left.split(" "))
+            rname = self.evaluateAtomic(right.split(" "))
+
+            # Check if relation is union compatible
+            if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
+                for types in self.schemas[lname]["types"]:
+                	if types not in self.schemas[rname]["types"]:
+                	    print("ERROR! Relation is not union compatible")
+                	    return tmp_name
+
+            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
+            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
+            self.primary_keys[tmp_name] = self.primary_keys[lname]
+
+            entries = []
+            for row in self.tables[lname]:
+            	i = 0
+            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
+            	for attr in self.schemas[lname]["attributes"]:
+            	    entry[i] = self.tables[lname][row][attr]
+            	    i = i+1
+            	entries.append(entry)
+
+            for row in self.tables[rname]:
+            	i = 0
+            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
+            	for attr in self.schemas[rname]["attributes"]:
+            	    entry[i] = self.tables[rname][row][attr]
+            	    i = i+1
+            	if entry in entries:
+            		entries.remove(entry)
+
+            for entry in entries:
+            	dummy_line = [' ']*(5+len(entry))
+            	dummy_line[2] = tmp_name
+            	i = 0
+            	for attr in self.schemas[rname]["attributes"]:
+            	    dummy_line[i+5] = entry[i]
+            	    i = i+1
+
+            	dummy_line[5] = "(\"" + dummy_line[5]
+            	dummy_line[-1] = dummy_line[-1] + ");"
+            	self.insert(dummy_line)
+
+            return tmp_name
         # Handle product
         elif '*' in line:
             return " ".join(line)
