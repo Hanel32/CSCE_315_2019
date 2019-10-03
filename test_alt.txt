@@ -8,8 +8,8 @@ INSERT INTO animals VALUES FROM ("Joe", "bird", 2);
 
 SHOW animals;
 
-dogs <- select (kind == "dog" && name == "Snoopy" || name == "Joe") animals;
-old_dogs <- select (kind == "dog" && years >= 10) animals;
+joes <- select (name == "Joe" && (kind == "cat" || kind == "bird")) animals;
+old_dogs_and_all_cats <- select (kind == "dog" && years >= 10 || kind == "cat") animals;
 
 cats_or_dogs <- dogs + (select (kind == "cat") animals);
 
