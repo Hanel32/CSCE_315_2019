@@ -470,7 +470,38 @@ class Lexer(object):
             return tmp_name
         # Handle selections
         elif expr == "select":
-            return " ".join(line)
+        	sel = " ".join(line)
+        	count = 0
+        	index = 0
+        	for c in sel:
+        		index += 1
+        		if c == '(':
+        			count += 1
+        		if c == ')':
+        			count -= 1
+        			if (count == 0) & (c != sel[0]):
+        				break
+
+        	atom = sel[index+1:len(sel)-1].split(" ")
+        	index = -1
+        	for word in line:
+        		index += 1
+        		if word == atom[0]:
+        			break
+
+        	atom = self.evaluateAtomic(atom)
+
+        	dummy_line = [' ']*(4+(index-1))
+        	dummy_line[0] = tmp_name
+        	dummy_line[1] = '<-'
+        	dummy_line[2] = 'select'
+        	for i in range(1,index):
+        		dummy_line[i+2] = line[i]
+        	dummy_line[-1] = atom
+
+        	self.select(dummy_line)
+
+        	return tmp_name
         # Handle renaming
         elif expr == "rename":
         	# Get attribute list
@@ -622,10 +653,11 @@ class Lexer(object):
             return tmp_name
         # Handle product
         elif '*' in line:
-            return " ".join(line)
+
+            return tmp_name
         # Handle natural join
         elif '&' in line:
-            return " ".join(line)
+            return tmp_name
         # Handle atomic expression
         else:
         	return self.evaluateAtomic(line)
