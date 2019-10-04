@@ -455,7 +455,6 @@ class Lexer(object):
             attr_lst = attr_lst.split(" ")
             # Evaluate atomic expression
             atom = line[i:]
-            print(atom)
             atom = self.evaluateAtomic(atom)
 
             # Get list of attribute types
@@ -508,7 +507,7 @@ class Lexer(object):
         				break
 
         	# Evaluates atomic expression and returns temp table name holding relation
-        	atom = sel[index+1:len(sel)-1].split(" ")
+        	atom = sel[index+1:len(sel)].split(" ")
         	index = -1
         	for word in line:
         		index += 1
