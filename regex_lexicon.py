@@ -399,8 +399,11 @@ class Lexer(object):
     def rename(self, line):
         print("TODO! RENAME")
 
+    # Returns the index of the operator to split expression into left and right components
     def getAtom(self, line):
     	index = -1
+    	# If there are parenthesis, find the end of them
+    	# This is the first atomic expression
     	if line[0] == '(':
     		count = 1
     		index = 1
@@ -411,6 +414,7 @@ class Lexer(object):
     				count -= 1
     			index += 1
     		index += 1
+    	# The first atomic expression is a relation name, so return whichever operator is first in the string
     	else:
     		for c in line:
     			index += 1
@@ -421,7 +425,7 @@ class Lexer(object):
     # Evaluates an expression
     def evaluateExpr(self, line):
         line = " ".join(line).replace(";","").split(" ")
-        expr = line[0]
+        expr = line[0]	# Either holds a command or the beginning of a relation
 
         # Make a temporary table with a unique name
         tmp_name = "tmp1"
@@ -503,6 +507,7 @@ class Lexer(object):
         			if (count == 0) & (c != sel[0]):
         				break
 
+        	# Evaluates atomic expression and returns temp table name holding relation
         	atom = sel[index+1:len(sel)-1].split(" ")
         	index = -1
         	for word in line:
@@ -512,6 +517,7 @@ class Lexer(object):
 
         	atom = self.evaluateAtomic(atom)
 
+        	# Make a dummy line for fake select request to call select funtion
         	dummy_line = [' ']*(4+(index-1))
         	dummy_line[0] = tmp_name
         	dummy_line[1] = '<-'
@@ -520,6 +526,7 @@ class Lexer(object):
         		dummy_line[i+2] = line[i]
         	dummy_line[-1] = atom
 
+        	# Call select to fill up temp table to return
         	self.select(dummy_line)
 
         	return tmp_name
@@ -579,9 +586,11 @@ class Lexer(object):
         # Handle Relational Algebra
         elif ('+' in line) | ('-' in line) | ('*' in line) | ('&' in line):
         	line = " ".join(line)
-        	i = self.getAtom(line)
+        	i = self.getAtom(line)	# Returns the index of the operator
+        	# Split into left and right sides
         	left = line[0:i-1]
         	right = line[i+2:len(line)]
+        	#Evaluate each atomic expression and return their temp table names
         	lname = self.evaluateAtomic(left.split(" "))
         	rname = self.evaluateAtomic(right.split(" "))
 
@@ -594,10 +603,12 @@ class Lexer(object):
 	                	    print("ERROR! Relation is not union compatible")
 	                	    return tmp_name
 
+	            # Fill attributes, types, and keys
 	            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
 	            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
 	            self.primary_keys[tmp_name] = self.primary_keys[lname]
 
+	            # Add first table
 	            for row in self.tables[lname]:
 	            	dummy_line = [' ']*(5+len(self.schemas[lname]["attributes"]))
 	            	dummy_line[2] = tmp_name
@@ -610,6 +621,7 @@ class Lexer(object):
 	            	dummy_line[-1] = dummy_line[-1] + ");"
 	            	self.insert(dummy_line)
 
+	            # Append second table
 	            for row in self.tables[rname]:
 	            	dummy_line = [' ']*(5+len(self.schemas[rname]["attributes"]))
 	            	dummy_line[2] = tmp_name
@@ -622,7 +634,7 @@ class Lexer(object):
 	            	dummy_line[-1] = dummy_line[-1] + ");"
 	            	self.insert(dummy_line)
 
-	            return tmp_name
+	            return tmp_name	# Holds name of tmp table
 	        # Handle Difference
         	elif line[i] == '-':
         		# Check if relation is union compatible
@@ -632,11 +644,14 @@ class Lexer(object):
 	                	    print("ERROR! Relation is not union compatible")
 	                	    return tmp_name
 
+	            # Fill attributes, types, and keys
 	            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
 	            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
 	            self.primary_keys[tmp_name] = self.primary_keys[lname]
 
+	            # List to manipulate to hold every tuple in the difference
 	            entries = []
+	            # Add left side of the expression
 	            for row in self.tables[lname]:
 	            	i = 0
 	            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
@@ -669,6 +684,7 @@ class Lexer(object):
 	            return tmp_name
         	# Handle Product
         	elif line[i] == '*':
+        		# Get list of attributes
         	    attr_lst = []
 	            for attr in self.schemas[lname]["attributes"]:
 	            	attr_lst.append(attr)
@@ -677,6 +693,7 @@ class Lexer(object):
 	            self.schemas[tmp_name]["attributes"] = attr_lst
 	            self.primary_keys[tmp_name] = attr_lst
 
+	            # Get list of types
 	            type_lst = []
 	            for t in self.schemas[lname]["types"]:
 	            	type_lst.append(t)
@@ -684,6 +701,7 @@ class Lexer(object):
 	            	type_lst.append(t)
 	            self.schemas[tmp_name]["types"] = type_lst
 
+	            # Iterature through tuples and implement product
 	            for row in self.tables[lname]:
 	            	pre = []
 	            	for attr in self.schemas[lname]["attributes"]:
@@ -710,6 +728,7 @@ class Lexer(object):
         			if attr in self.schemas[rname]["attributes"]:
         				attr_lst.append(attr)
 
+        		# Get list of attributes and types
         		attrs = []
         		types = []
         		for a, t in zip(self.schemas[lname]["attributes"], self.schemas[lname]["types"]):
@@ -723,6 +742,7 @@ class Lexer(object):
         		self.schemas[tmp_name]["types"] = types
         		self.primary_keys[tmp_name] = attrs
 
+        		# Iterate through tuples and implement natural join
         		for row in self.tables[lname]:
         			for row2 in self.tables[rname]:
         				match = True
@@ -752,10 +772,12 @@ class Lexer(object):
     # Evaluates an atomic expression
     def evaluateAtomic(self, line):
         line = " ".join(line).replace(";","")
+        # First case of ( expr )
         if '(' in line:
             line = line[1:len(line)-1]
             line = line.split(" ")
             return self.evaluateExpr(line)
+        # Case for relation name
         else:
         	return line
         
