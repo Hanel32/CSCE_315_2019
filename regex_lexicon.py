@@ -399,8 +399,28 @@ class Lexer(object):
     def rename(self, line):
         print("TODO! RENAME")
 
+    def getAtom(self, line):
+    	index = -1
+    	if line[0] == '(':
+    		count = 1
+    		index = 1
+    		while count > 0:
+    			if line[index] == '(':
+    				count += 1
+    			if line[index] == ')':
+    				count -= 1
+    			index += 1
+    		index += 1
+    	else:
+    		for c in line:
+    			index += 1
+    			if (c == '+') | (c == '-') | (c == '*') | (c == '&'):
+    				break
+    	return index
+
     # Evaluates an expression
     def evaluateExpr(self, line):
+        line = " ".join(line).replace(";","").split(" ")
         expr = line[0]
 
         # Make a temporary table with a unique name
@@ -431,6 +451,7 @@ class Lexer(object):
             attr_lst = attr_lst.split(" ")
             # Evaluate atomic expression
             atom = line[i:]
+            print(atom)
             atom = self.evaluateAtomic(atom)
 
             # Get list of attribute types
@@ -555,109 +576,175 @@ class Lexer(object):
                 self.insert(dummy_line)
 
             return tmp_name
-        # Handle union
-        elif '+' in line:
-            line = " ".join(line)
-            i = line.find('+')
-            left = line[0:i-1]
-            right = line[i+2:len(line)-1]
-            lname = self.evaluateAtomic(left.split(" "))
-            rname = self.evaluateAtomic(right.split(" "))
+        # Handle Relational Algebra
+        elif ('+' in line) | ('-' in line) | ('*' in line) | ('&' in line):
+        	line = " ".join(line)
+        	i = self.getAtom(line)
+        	left = line[0:i-1]
+        	right = line[i+2:len(line)]
+        	lname = self.evaluateAtomic(left.split(" "))
+        	rname = self.evaluateAtomic(right.split(" "))
 
-            # Check if relation is union compatible
-            if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
-                for types in self.schemas[lname]["types"]:
-                	if types not in self.schemas[rname]["types"]:
-                	    print("ERROR! Relation is not union compatible")
-                	    return tmp_name
+            # Handle Union
+        	if line[i] == '+':
+        		# Check if relation is union compatible
+	            if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
+	                for types in self.schemas[lname]["types"]:
+	                	if types not in self.schemas[rname]["types"]:
+	                	    print("ERROR! Relation is not union compatible")
+	                	    return tmp_name
 
-            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
-            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
-            self.primary_keys[tmp_name] = self.primary_keys[lname]
+	            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
+	            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
+	            self.primary_keys[tmp_name] = self.primary_keys[lname]
 
-            for row in self.tables[lname]:
-            	dummy_line = [' ']*(5+len(self.schemas[lname]["attributes"]))
-            	dummy_line[2] = tmp_name
-            	i = 5
-            	for attr in self.schemas[lname]["attributes"]:
-            	    dummy_line[i] = self.tables[lname][row][attr]
-            	    i = i+1
+	            for row in self.tables[lname]:
+	            	dummy_line = [' ']*(5+len(self.schemas[lname]["attributes"]))
+	            	dummy_line[2] = tmp_name
+	            	i = 5
+	            	for attr in self.schemas[lname]["attributes"]:
+	            	    dummy_line[i] = self.tables[lname][row][attr]
+	            	    i = i+1
 
-            	dummy_line[5] = "(\"" + dummy_line[5]
-            	dummy_line[-1] = dummy_line[-1] + ");"
-            	self.insert(dummy_line)
+	            	dummy_line[5] = "(\"" + dummy_line[5]
+	            	dummy_line[-1] = dummy_line[-1] + ");"
+	            	self.insert(dummy_line)
 
-            for row in self.tables[rname]:
-            	dummy_line = [' ']*(5+len(self.schemas[rname]["attributes"]))
-            	dummy_line[2] = tmp_name
-            	i = 5
-            	for attr in self.schemas[rname]["attributes"]:
-            	    dummy_line[i] = self.tables[rname][row][attr]
-            	    i = i+1
+	            for row in self.tables[rname]:
+	            	dummy_line = [' ']*(5+len(self.schemas[rname]["attributes"]))
+	            	dummy_line[2] = tmp_name
+	            	i = 5
+	            	for attr in self.schemas[rname]["attributes"]:
+	            	    dummy_line[i] = self.tables[rname][row][attr]
+	            	    i = i+1
 
-            	dummy_line[5] = "(\"" + dummy_line[5]
-            	dummy_line[-1] = dummy_line[-1] + ");"
-            	self.insert(dummy_line)
+	            	dummy_line[5] = "(\"" + dummy_line[5]
+	            	dummy_line[-1] = dummy_line[-1] + ");"
+	            	self.insert(dummy_line)
 
-            return tmp_name
-        # Handle difference
-        elif '-' in line:
-            line = " ".join(line)
-            i = line.find('-')
-            left = line[0:i-1]
-            right = line[i+2:len(line)-1]
-            lname = self.evaluateAtomic(left.split(" "))
-            rname = self.evaluateAtomic(right.split(" "))
+	            return tmp_name
+	        # Handle Difference
+        	elif line[i] == '-':
+        		# Check if relation is union compatible
+	            if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
+	                for types in self.schemas[lname]["types"]:
+	                	if types not in self.schemas[rname]["types"]:
+	                	    print("ERROR! Relation is not union compatible")
+	                	    return tmp_name
 
-            # Check if relation is union compatible
-            if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
-                for types in self.schemas[lname]["types"]:
-                	if types not in self.schemas[rname]["types"]:
-                	    print("ERROR! Relation is not union compatible")
-                	    return tmp_name
+	            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
+	            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
+	            self.primary_keys[tmp_name] = self.primary_keys[lname]
 
-            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
-            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
-            self.primary_keys[tmp_name] = self.primary_keys[lname]
+	            entries = []
+	            for row in self.tables[lname]:
+	            	i = 0
+	            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
+	            	for attr in self.schemas[lname]["attributes"]:
+	            	    entry[i] = self.tables[lname][row][attr]
+	            	    i = i+1
+	            	entries.append(entry)
 
-            entries = []
-            for row in self.tables[lname]:
-            	i = 0
-            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
-            	for attr in self.schemas[lname]["attributes"]:
-            	    entry[i] = self.tables[lname][row][attr]
-            	    i = i+1
-            	entries.append(entry)
+	            for row in self.tables[rname]:
+	            	i = 0
+	            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
+	            	for attr in self.schemas[rname]["attributes"]:
+	            	    entry[i] = self.tables[rname][row][attr]
+	            	    i = i+1
+	            	if entry in entries:
+	            		entries.remove(entry)
 
-            for row in self.tables[rname]:
-            	i = 0
-            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
-            	for attr in self.schemas[rname]["attributes"]:
-            	    entry[i] = self.tables[rname][row][attr]
-            	    i = i+1
-            	if entry in entries:
-            		entries.remove(entry)
+	            for entry in entries:
+	            	dummy_line = [' ']*(5+len(entry))
+	            	dummy_line[2] = tmp_name
+	            	i = 0
+	            	for attr in self.schemas[rname]["attributes"]:
+	            	    dummy_line[i+5] = entry[i]
+	            	    i = i+1
 
-            for entry in entries:
-            	dummy_line = [' ']*(5+len(entry))
-            	dummy_line[2] = tmp_name
-            	i = 0
-            	for attr in self.schemas[rname]["attributes"]:
-            	    dummy_line[i+5] = entry[i]
-            	    i = i+1
+	            	dummy_line[5] = "(\"" + dummy_line[5]
+	            	dummy_line[-1] = dummy_line[-1] + ");"
+	            	self.insert(dummy_line)
 
-            	dummy_line[5] = "(\"" + dummy_line[5]
-            	dummy_line[-1] = dummy_line[-1] + ");"
-            	self.insert(dummy_line)
+	            return tmp_name
+        	# Handle Product
+        	elif line[i] == '*':
+        	    attr_lst = []
+	            for attr in self.schemas[lname]["attributes"]:
+	            	attr_lst.append(attr)
+	            for attr in self.schemas[rname]["attributes"]:
+	            	attr_lst.append(attr)
+	            self.schemas[tmp_name]["attributes"] = attr_lst
+	            self.primary_keys[tmp_name] = attr_lst
 
-            return tmp_name
-        # Handle product
-        elif '*' in line:
+	            type_lst = []
+	            for t in self.schemas[lname]["types"]:
+	            	type_lst.append(t)
+	            for t in self.schemas[rname]["types"]:
+	            	type_lst.append(t)
+	            self.schemas[tmp_name]["types"] = type_lst
 
-            return tmp_name
-        # Handle natural join
-        elif '&' in line:
-            return tmp_name
+	            for row in self.tables[lname]:
+	            	pre = []
+	            	for attr in self.schemas[lname]["attributes"]:
+	            		pre.append(self.tables[lname][row][attr])
+	            	for r in self.tables[rname]:
+	            		app = []
+		            	for attr in self.schemas[rname]["attributes"]:
+		            		app.append(self.tables[rname][r][attr])
+		            	new_tuple = pre + app
+
+		            	dummy_line = [' ', ' ', tmp_name, ' ', ' ']
+		            	dummy_line[2] = tmp_name
+		            	dummy_line = dummy_line + new_tuple
+		            	dummy_line[5] = "(\"" + dummy_line[5]
+		            	dummy_line[-1] = dummy_line[-1] + ");"
+		            	self.insert(dummy_line)
+
+	            return tmp_name
+        	# Handle Natural Join
+        	elif line[i] == '&':
+        		# Find common attributes
+        		attr_lst = []
+        		for attr in self.schemas[lname]["attributes"]:
+        			if attr in self.schemas[rname]["attributes"]:
+        				attr_lst.append(attr)
+
+        		attrs = []
+        		types = []
+        		for a, t in zip(self.schemas[lname]["attributes"], self.schemas[lname]["types"]):
+        			attrs.append(a)
+        			types.append(t)
+        		for a, t in zip(self.schemas[rname]["attributes"], self.schemas[rname]["types"]):
+        			if a not in attr_lst:
+        				attrs.append(a)
+        				types.append(t)
+        		self.schemas[tmp_name]["attributes"] = attrs
+        		self.schemas[tmp_name]["types"] = types
+        		self.primary_keys[tmp_name] = attrs
+
+        		for row in self.tables[lname]:
+        			for row2 in self.tables[rname]:
+        				match = True
+        				for attr in attr_lst:
+        					match = match & (self.tables[lname][row][attr] == self.tables[rname][row2][attr])
+        				if match:
+        					new_tuple = []
+        					for a in self.schemas[lname]["attributes"]:
+        						new_tuple.append(self.tables[lname][row][a])
+        					for a in self.schemas[rname]["attributes"]:
+        						if a not in attr_lst:
+        							new_tuple.append(self.tables[rname][row2][a])
+        					# Insert dummy line
+        					dummy_line = [' ', ' ', tmp_name, ' ', ' ']
+        					dummy_line[2] = tmp_name
+        					dummy_line = dummy_line + new_tuple
+        					dummy_line[5] = "(\"" + dummy_line[5]
+        					dummy_line[-1] = dummy_line[-1] + ");"
+        					self.insert(dummy_line)
+
+        		return tmp_name
+            
         # Handle atomic expression
         else:
         	return self.evaluateAtomic(line)
