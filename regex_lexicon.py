@@ -241,7 +241,7 @@ class Lexer(object):
 	    for row_id in table.keys():
 	        for attr_name in table[row_id].keys()
 		    if attr_name == lop
-			table[row][attr_name] = rop
+			table[row_id][attr_name] = rop
 		
     # Inserting values into a table
     def insert(self, line):
@@ -299,7 +299,7 @@ class Lexer(object):
 	
 	# Iterates through table, deleting any entry that meets the condition
         for tableEntry in table:
-            if evaluateCondition(condition, table, tableEntry):
+            if self.evaluateCondition(condition, table, tableEntry):
                 self.table[tableEntry] = None
     #----------------------------------------------------------------------------------------------------------------------------
 
