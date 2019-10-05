@@ -286,23 +286,24 @@ class Lexer(object):
             # Insert the data into the record, indexed by variable name.
             for varname, val in zip(self.schemas[table_name]["attributes"], values):
                 self.tables[table_name][primary_key][varname] = val
-    
+		
     # Delete from a table some subset that matches a condition.
     def delete(self, line):
         # Checks that the requested table exists
-	table_name = line[2]
+        table_name = line[2]
         if table_name not in self.tables.keys():
             print("ERROR! Attempting to delete a null table: " + str(table_name) + "!")
             return
-        
+
         # Obtains table value and condition
         table = self.tables[table_name]
-        condition = line[4:]
-	
-	# Iterates through table, deleting any entry that meets the condition
-        for tableEntry in table:
-            if self.evaluateCondition(condition, table, tableEntry):
-                self.table[tableEntry] = None
+        condition = line[4:7]
+        condition[2] = condition[2].replace(";", "")
+
+        # Iterates through table, deleting any entry that meets the condition
+        for row_id in table.keys():
+            if condition[0] in table[row_id].keys() and table[row_id][condition[0]] == condition[2]:
+                table[row_id] = None
     #----------------------------------------------------------------------------------------------------------------------------
 
     # Evaluates a condition and returns the bool result (condition must be form of "operand operator operand", so like 6 > 10)
