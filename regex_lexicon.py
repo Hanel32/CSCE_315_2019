@@ -31,6 +31,194 @@ class Lexer(object):
             else:
                 return False # Is some junk.
             
+        # Evaluates a condition and returns the bool result (condition must be form of "operand operator operand", so like 6 > 10)
+    
+    # Brenden's select helper methods start
+    #-------------------------------------------------------------------------------------------------------------------------
+
+    # Evaluates condition in simple form of "operand operator operand"
+    def evaluateCondition(self, condition, tableToCheckFrom, tableEntry) :
+        
+        entryAttrib = self.tables[tableToCheckFrom][tableEntry][condition[0]]
+
+        # determines if we're comparing a string literal or a number
+        isNumber = False
+        originalCommand = condition[2]
+
+        # Removes quotations from the string literal, need be, and also converts to number if needed (only works for ints, due to .isdigit)
+        if type(condition[2]) != float:
+            for x in range(len(condition)):
+                condition[x] = condition[x].replace('\"','')
+            if condition[2].isdigit():
+                condition[2] = float(condition[2])
+
+        # if nothing changed, then there were no quotes and we have a number (might have to check whether to cast to int or float?)
+        if entryAttrib.isdigit():
+            entryAttrib = float(entryAttrib)
+
+        if condition[1] == "==" :
+            if entryAttrib == condition[2]:
+                return True
+        elif condition[1] == "!=" :
+            if entryAttrib != condition[2]:
+                return True
+        elif condition[1] == "<" :
+            if entryAttrib < condition[2]:
+                return True
+        elif condition[1] == ">" :
+            if entryAttrib > condition[2]:
+                return True
+        elif condition[1] == "<=" :
+            if entryAttrib <= condition[2]:
+                return True
+        elif condition[1] == ">=" :
+            if entryAttrib >= condition[2]:
+                return True
+
+        return False
+
+    # Name is self explanitory
+    def findIndexOfCloseParenthesis(self, indexesWithCloseParenthesisList, openParenthesisIndex):
+        if len(indexesWithCloseParenthesisList) == 0: # returns -1, as this will not naturally occur
+            return -1
+
+        indexesAfterOpen = []
+        for index in indexesWithCloseParenthesisList:
+            if index > openParenthesisIndex:
+                indexesAfterOpen.append(index)
+
+        return min(indexesAfterOpen)
+
+    # returns a bool, takes in something like (thing to check <operator> thing to check against), possibly more
+    # with || or && in between, but only one level of parentheses
+    def processInnerCommands(self, commands, tableToCheckFrom, tableEntry):
+
+        singleEvaluation = False
+
+        if len(commands) <= 3:
+            singleEvaluation = True
+
+        commandsToProcess = commands.copy() # copy to not mutate data
+
+        # remove parentheses
+        for token in range(len(commandsToProcess)):
+            if type(commandsToProcess[token]) != bool:
+                commandsToProcess[token] = commands[token].replace('(','').replace(')','')
+            if commandsToProcess[token] == '': # used to protect against tokens that are just parentheses
+                commandsToProcess = commandsToProcess[:token]
+                break
+
+        if not singleEvaluation:
+            i = 0
+            # go through and evaluate the strings of 3 items to true or false
+            for token in commandsToProcess:
+                if token == "&&" or token == "||":
+                    if type(commandsToProcess[i-1]) != bool and type(commandsToProcess[i-3]) != bool: # if it is a bool, I don't need to change it right now
+                        # evaluate the string of three things and replace with output bool
+                        boolResult = self.evaluateCondition(commandsToProcess[i-3:i], tableToCheckFrom, tableEntry)
+                        commandsToProcess[i-3] = boolResult
+                i += 1
+
+            # Evaluate the last condition, need be
+            if type(commandsToProcess[i-1]) != bool:
+                boolResult = self.evaluateCondition(commandsToProcess[i-3:i], tableToCheckFrom, tableEntry)
+                commandsToProcess[i-3] = boolResult
+        else:
+            commandsToProcess[0] = self.evaluateCondition(commandsToProcess, tableToCheckFrom, tableEntry)
+
+        # Gets rid of all the data we no longer need in the commands (so not bools or &&/||)
+        for token in commandsToProcess:
+            if type(token) != bool and token != "&&" and token != "||":
+                commandsToProcess.pop(commandsToProcess.index(token))
+
+        # The current T/F state of the line from left to right
+        boolStateFromLeft = commandsToProcess[0]
+
+        # We now have the commands in the form of something like "True || False && True"
+        for token in commandsToProcess:
+            if token == "&&":
+                boolStateFromLeft = (boolStateFromLeft and commandsToProcess[commandsToProcess.index(token) + 1])
+            elif token == "||":
+                boolStateFromLeft = (boolStateFromLeft or commandsToProcess[commandsToProcess.index(token) + 1])
+
+        return boolStateFromLeft
+
+
+    # Does what select should do, takes the name of the table to insert to (use a temp val need be) and the
+    # set of select commands in particular (so like "select (kind == "cat") animals" and things of that simple nature)
+    # Must remove (outer) parentheses beforehand, table to search from must be last element in selectBlock (so "animals" in above)
+    # TODO IMPORTANT: Call THIS function when you need to process just a select block, for example, the line
+    # common_names <- project (name) (select (aname == name && akind != kind) (a * animals));
+    # You would get just the "select (aname == name && akind != kind) 'tablename'" part, and pass that into THIS function
+    # This function does not currently have the capability of resolving "a * animals" to a table, I feel like doing that
+    # first and replacing that part of the table with the new table name would be the best course of action
+    def processSelectBlock(self, tableToInsertTo, selectBlock, tableToCheckFrom):
+
+        # This should contain only the commands to parse (parentheses included)
+        commandsOriginal = selectBlock.copy()
+
+        # Find where the parentheses are
+        i = 0
+        indexesWithOpenParenthesisOriginal = []
+        indexesWithCloseParenthesisOriginal = []
+        for item in commandsOriginal:
+            if type(item) != bool and len(item) >= 2:
+                if item[0] == "(":
+                    indexesWithOpenParenthesisOriginal.append(i)
+                if item[-1] == ")":
+                    indexesWithCloseParenthesisOriginal.append(i)
+            i += 1
+
+        # This replaces all of the commands to something like "True && False || True" in the correct order
+        for tableEntry in self.tables[tableToCheckFrom]:
+            commands = commandsOriginal.copy()
+
+            indexesWithOpenParenthesis = indexesWithOpenParenthesisOriginal.copy()
+            indexesWithCloseParenthesis = indexesWithCloseParenthesisOriginal.copy()
+
+            # replaces the list of commands with all true and false values
+            while len(indexesWithOpenParenthesis) > 0 or len(indexesWithCloseParenthesis) > 0:
+                closeParenthesisIndex = self.findIndexOfCloseParenthesis(indexesWithCloseParenthesis, max(indexesWithOpenParenthesis))
+
+                # if no close parentheses, then do the rest of the line from the last open
+                if closeParenthesisIndex == -1:
+                    innerCommandResult = self.processInnerCommands(commands[max(indexesWithOpenParenthesis):], tableToCheckFrom, tableEntry)
+                else:
+                    innerCommandResult = self.processInnerCommands(commands[max(indexesWithOpenParenthesis):closeParenthesisIndex + 1], tableToCheckFrom, tableEntry)
+
+                # Replaces the open token with a bool
+                commands[max(indexesWithOpenParenthesis)] = innerCommandResult
+
+                # Gets rid of the other elements I no longer need, this also auto removes parentheses (deletes rest of block that didn't turn to bool)
+                indexingVar = max(indexesWithOpenParenthesis) + 1
+                while indexingVar <= closeParenthesisIndex:
+                    commands.pop(max(indexesWithOpenParenthesis) + 1) #since you keep popping, you need to keep popping the same index
+                    indexingVar += 1
+
+                indexesWithOpenParenthesis.pop(indexesWithOpenParenthesis.index(max(indexesWithOpenParenthesis)))
+
+                # Used because sometimes (when a token is like "thing))") the index is -1 to indicate that there is no index with a cp
+                if closeParenthesisIndex != -1:
+                    indexesWithCloseParenthesis.pop(indexesWithCloseParenthesis.index(closeParenthesisIndex))
+
+            # Same logic as inner commands, just final check
+            boolStateFromLeft = commands[0]
+
+            for token in commands:
+                if token == "&&":
+                    boolStateFromLeft = (boolStateFromLeft and commands[commands.index(token) + 1])
+                elif token == "||":
+                    boolStateFromLeft = (boolStateFromLeft or commands[commands.index(token) + 1])
+            
+            # Insert if statement evaluated true
+            if boolStateFromLeft:
+                self.tables[tableToInsertTo][tableEntry] = self.tables[tableToCheckFrom][tableEntry]
+
+        
+    # Brenden's select helper methods end
+    #-------------------------------------------------------------------------------------------------------------------------
+      
+
     # Given knowledge of primary keys, the attibutes of a row, and the values,
     # generate a primary key. Usage of ord() simply transfers characters into
     # their ASCII values, and generates a key.
@@ -267,70 +455,11 @@ class Lexer(object):
     # Delete from a table some subset that matches a condition.
     def delete(self, line):
         print("TODO! DELETE")
-        
-    #----------------------------------------------------------------------------------------------------------------------------
-
-    # Evaluates a condition and returns the bool result (condition must be form of "operand operator operand", so like 6 > 10)
-    def evaluateCondition(self, condition, tableToCheckFrom, tableEntry) :
-
-        entryAttrib = self.tables[tableToCheckFrom][tableEntry][condition[0]]
-
-        # determines if we're comparing a string literal or a number
-        isNumber = False
-        originalCommand = condition[2]
-
-        # Removes quotations from the string literal, need be, and also converts to number if needed (only works for ints)
-        if type(condition[2]) != float:
-            for x in range(len(condition)):
-                condition[x] = condition[x].replace('\"','')
-            if condition[2].isdigit():
-                condition[2] = float(condition[2])
-
-        # if nothing changed, then there were no quotes and we have a number (might have to check whether to cast to int or float?)
-        if entryAttrib.isdigit():
-            entryAttrib = float(entryAttrib)
-
-        if condition[1] == "==" :
-            if entryAttrib == condition[2]:
-                return True
-        elif condition[1] == "!=" :
-            if entryAttrib != condition[2]:
-                return True
-        elif condition[1] == "<" :
-            if entryAttrib < condition[2]:
-                return True
-        elif condition[1] == ">" :
-            if entryAttrib > condition[2]:
-                return True
-        elif condition[1] == "<=" :
-            if entryAttrib <= condition[2]:
-                return True
-        elif condition[1] == ">=" :
-            if entryAttrib >= condition[2]:
-                return True
-
-        return False
-
-    # If any of the conditions return true, then return true for the whole list
-    def evaluateOrList(self, orList, tableToCheckFrom, tableEntry) :
-        for condition in orList:
-            if self.evaluateCondition(condition, tableToCheckFrom, tableEntry):
-                return True
-        return False
-
-    # Return false if any of the conditions are not true
-    def evaluateAndList(self, andList, tableToCheckFrom, tableEntry) :
-        for condition in andList:
-            if not self.evaluateCondition(condition, tableToCheckFrom, tableEntry):
-                return False
-        return True
-
-    #----------------------------------------------------------------------------------------------------------------------------
 
     # Select some subset of the table
+    # This should only be called for a full line with only a select call, like
+    # dogs <- select (kind == "dog") animals;
     def select(self, line):
-        print("TODO! SELECT")
-
         # make lists of the conditions we need to evaluate
         conditionListAnd = []
         conditionListOr = []
@@ -341,55 +470,15 @@ class Lexer(object):
             return
         
         # sets up the new table
-        self.tables[line[0].lower()] = {}
+        self.tables[line[0].lower()] = {}  
+        # Passes to helper function to actually fill with correct elements
+        self.processSelectBlock(line[0].lower(), line[3:-1], line[-1][:-1]) # last split is to get rid of semicolon
 
-        # starting at the point after the "select" call, finds the end of the condition commands
-        i = 3
-        while True:
-            if line[i][-1] == ')':
-                i += 1
-                break
-            i += 1
-        
-        # gets just the commands to process
-        commands = line[3:i]
-
-        # removes the parentheses
-        commands[0] = commands[0][1:]
-        commands[-1] = commands[-1][:-1]
-
-        # puts pairs of conditions into respective lists
-        i = 0
-        for token in commands:
-            if token == "&&" :
-                conditionListAnd.append(commands[i-3:i])
-                conditionListAnd.append(commands[i+1:i+4])
-            elif token == "||" :
-                #conditionListOr.append(commands[i-3:i])
-                conditionListOr.append(commands[i+1:i+4])
-            i += 1
-
-        # gets the table to search from, which should be the last element
-        tableToCheckFrom = line[-1][:-1]
-        print("tableToCheckFrom: " + tableToCheckFrom)
-
-        # TODO Somewhere in here, we need to work back in the thing where we change the number strings to actual numbers
-
-        print(commands)
-        print(conditionListAnd)
-        print(conditionListOr)
-
-        # iterate through the table we're searching from
-        for tableEntry in self.tables[tableToCheckFrom]:
-            # if there was more than one condition to evaluate, then pass to the other functions
-            if len(conditionListOr) != 0 or len(conditionListAnd) != 0:
-                if self.evaluateOrList(conditionListOr, tableToCheckFrom, tableEntry) or self.evaluateAndList(conditionListAnd, tableToCheckFrom, tableEntry):
-                    print("insert this item into the table:")
-                    print(tableEntry)
-            else:
-                if self.evaluateCondition(commands, tableToCheckFrom, tableEntry):
-                    print("insert this item into the table:")
-                    print(tableEntry)                
+        print("\n~~~~~~~~~~~~<" + line[0].lower() + ">~~~~~~~~~~~")
+        table = self.tables[line[0].lower()]
+        for key in table:
+            print(str(table[key]))
+        print("~~~~~~~~~~~~</" + str(line[0].lower()) + ">~~~~~~~~~~\n")
 
     # ion
     def project(self, line):
@@ -589,7 +678,7 @@ def Main():
     # Opens the file "test.txt" from the current working directory.
     __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    lexicon = Lexer(os.path.join(__location__, 'test.txt'))
+    lexicon = Lexer(os.path.join(__location__, 'test_alt.txt'))
     
 Main() # Needed to make Main work.     
     
