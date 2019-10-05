@@ -206,42 +206,44 @@ class Lexer(object):
         # Add the primary keys to the table.
         self.primary_keys[new_name] = keys                   # Sets up keys to the table.
         
-    # Updates some set of the values that matches a criterion to a given value.
+ # Updates some set of the values that matches a criterion to a given value.
     def update(self, line):
         # Checks that the requested table exists
-	table_name = line[1]
+        table_name = line[1]
         if table_name not in self.tables.keys():
             print("ERROR! Attempting to update a null table: " + str(table_name) + "!")
             return
-        
-	# Obtains table value
-	table = self.tables[table_name]
-        
-	# Obtains end place of attribute_name
-	i = 6
-	while True:
+
+        # Obtains table value
+        table = self.tables[table_name]
+
+        # Obtains end place of attribute_name
+        i = 6
+        while True:
             if line[i].lower() == "where":
-	    	break
+                break
             i += 1
-	
-	attribute_name = line[3:i]
-	
-	# Removes commas from attribute_name
-	for x in range(len(attribute_name)):
-	    attribute_name[x] = attribute_name[x].replace(",","")
-	
-        condition = line[i+1]
-	
-	# Iterates through table, updating any entry that meets the condition
+
+        attribute_name = line[3:i]
+
+        # Removes commas from attribute_name
+        for x in range(len(attribute_name)):
+            attribute_name[x] = attribute_name[x].replace(",", "")
+
+        condition = line[i+1:i+4]
+        condition[2] = condition[2].replace(";", "")
+
+        # Iterates through table, updating any entry that meets the condition
         temp_table = {}
-	for i in range(0,len(attribute_name),3):
-	    lop = attribute_name[i]
-	    mop = attribute_name[i+1]
-            rop = attribute_name[i+2]
-	    for row_id in table.keys():
-	        for attr_name in table[row_id].keys()
-		    if attr_name == lop
-			table[row_id][attr_name] = rop
+        for i in range(0, len(attribute_name), 3):
+            lop = attribute_name[i]
+            mop = attribute_name[i + 1]
+            rop = attribute_name[i + 2]
+            for row_id in table.keys():
+                if condition[0] in table[row_id].keys() and table[row_id][condition[0]] == condition[2]:
+                    for attr_name in table[row_id].keys():
+                        if attr_name == lop:
+                            table[row_id][attr_name] = rop
 		
     # Inserting values into a table
     def insert(self, line):
