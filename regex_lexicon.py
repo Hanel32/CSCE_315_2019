@@ -916,7 +916,7 @@ class Lexer(object):
 
     
     # Projection
-    def project(self, line):
+        def project(self, line):
         #If this is the 'base' or project is the final function call, we want to know due to recursive calling
         if(line[1] == '<-'):
             new_name = line[0].lower()
@@ -957,14 +957,7 @@ class Lexer(object):
         nextInLine = nextInLine.replace(';','')
         if nextInLine not in self.tables.keys():
             #NextInLine = parse_commands(line[i:])'
-            if(nextInLine == 'project'):
-                nextInLine = self.project(line[i:])
-            elif(nextInLine == 'select'):
-                nextInLine = self.select(line[i:])
-            elif(nextInLine == 'rename'):
-                nextInLine = self.rename(line[i:])
-            else:
-                return
+            nextInLine = self.evaluateExpr(line[i:])
 
         #Setup our new table
         self.tables[new_name] = {}
@@ -992,7 +985,7 @@ class Lexer(object):
         self.schemas[new_name]["attributes"] = attributes
         self.schemas[new_name]["types"]      = types
         self.primary_keys[new_name]          = keys
-
+        
         #Now we need to move actual data from our original table to this table
         # STILL NEED TODO 
         for x in self.tables[nextInLine].keys():
@@ -1053,14 +1046,7 @@ class Lexer(object):
         #print(nextInLine)
         if nextInLine not in self.tables.keys():
             #NextInLine = parse_commands(line[i:])'
-            if(nextInLine == 'project'):
-                nextInLine = self.project(line[i:])
-            elif(nextInLine == 'select'):
-                nextInLine = self.select(line[i:])
-            elif(nextInLine == 'rename'):
-                nextInLine = self.rename(line[i:])
-            else:
-                return
+            nextInLine = self.evaluateExpr(line[i:])
         #Should not need 'else' if recursive call works
         #Setup our new table attributes
         types      = []
@@ -1082,19 +1068,26 @@ class Lexer(object):
             keys[x] = attributes[keys[x]]
 
         #Setting values for our table
-        self.schemas[nextInLine]["attributes"] = attributes
-        self.schemas[nextInLine]["keys"] = keys
-        #Now we need to move actual data from our original table to this table
-        # STILL NEED TODO
-        for x in list(self.tables[nextInLine].copy()):
-            i = 0
-            for y in self.tables[nextInLine][x].copy():
-                value = self.tables[nextInLine][x][y]
-                del self.tables[nextInLine][x][y]
-                self.tables[nextInLine][x][attributes[i]] = value
-                i += 1
+
+        self.tables[new_name]  = {} 
+        self.schemas[new_name] = {} 
+
+        self.schemas[new_name]["attributes"] = attributes
+        self.schemas[new_name]["types"]      = types
+        self.primary_keys[new_name]          = keys
         
-        self.tables[new_name] = self.tables[nextInLine]
+        for row in self.tables[nextInLine]:
+            dummy_line = [' ']*(5+len(attributes))
+            dummy_line[2] = new_name
+            i = 5
+            for attr in orig_attributes:
+                dummy_line[i] = self.tables[nextInLine][row][attr]
+                i = i+1
+
+            dummy_line[5] = "(\"" + dummy_line[5]
+            dummy_line[-1] = dummy_line[-1] + ");"
+            self.insert(dummy_line)
+
         return new_name
 
     # Evaluates an atomic expression
