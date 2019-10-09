@@ -916,7 +916,7 @@ class Lexer(object):
 
     
     # Projection
-        def project(self, line):
+    def project(self, line):
         #If this is the 'base' or project is the final function call, we want to know due to recursive calling
         if(line[1] == '<-'):
             new_name = line[0].lower()
