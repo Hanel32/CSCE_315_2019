@@ -883,9 +883,12 @@ class Lexer(object):
         condition[2] = condition[2].replace(";", "")
 
         # Iterates through table, deleting any entry that meets the condition
+        temp = []
         for row_id in table.keys():
             if condition[0] in table[row_id].keys() and table[row_id][condition[0]] == condition[2]:
-                table[row_id] = None
+                temp.append(row_id)
+        for x in temp:
+            table.pop(x)
 
     # Select some subset of the table
     # This should only be called for a full line with only a select call, like
