@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Sep 20 22:10:12 2019
-
 @author: Carson
 """
 import re
@@ -33,45 +32,48 @@ class Lexer(object):
              
     # Returns the index of the operator to split expression into left and right components
     def getAtom(self, line):
-    	index = -1
-    	# If there are parenthesis, find the end of them
-    	# This is the first atomic expression
-    	if line[0] == '(':
-    		count = 1
-    		index = 1
-    		while count > 0:
-    			if line[index] == '(':
-    				count += 1
-    			if line[index] == ')':
-    				count -= 1
-    			index += 1
-    		index += 1
-    	# The first atomic expression is a relation name, so return whichever operator is first in the string
-    	else:
-    		for c in line:
-    			index += 1
-    			if (c == '+') | (c == '-') | (c == '*') | (c == '&'):
-    				break
-    	return index
+        index = -1
+        # If there are parenthesis, find the end of them
+        # This is the first atomic expression
+        if line[0] == '(':
+            count = 1
+            index = 1
+            while count > 0:
+                if line[index] == '(':
+                    count += 1
+                if line[index] == ')':
+                    count -= 1
+                index += 1
+            index += 1
+        # The first atomic expression is a relation name, so return whichever operator is first in the string
+        else:
+            for c in line:
+                index += 1
+                if (c == '+') | (c == '-') | (c == '*') | (c == '&'):
+                    break
+        if index == len(line)+1:
+            return -1
+        else:
+            return index
     
     # Evaluates an expression
     def evaluateExpr(self, line):
         line = " ".join(line).replace(";","").split(" ")
-        expr = line[0]	# Either holds a command or the beginning of a relation
+        expr = line[0]  # Either holds a command or the beginning of a relation
 
         # Make a temporary table with a unique name
         tmp_name = "tmp1"
         i = 1
         while tmp_name in self.tables.keys():
-        	i += 1
-        	tmp_name = "tmp" + str(i)
+            i += 1
+            tmp_name = "tmp" + str(i)
         self.tables[tmp_name] = {}
         self.schemas[tmp_name] = {}
         self.primary_keys[tmp_name] = {}
 
         # Handle projections
         if expr == "project":
-        	# Get attribute list
+            # Get attribute list
             i = 1
             while True:
                 if line[i][-1] == ')':
@@ -92,8 +94,8 @@ class Lexer(object):
             # Get list of attribute types
             type_lst = []
             for atr, typ in zip(self.schemas[atom]["attributes"], self.schemas[atom]["types"]):
-            	if atr in attr_lst:
-            		type_lst.append(typ)
+                if atr in attr_lst:
+                    type_lst.append(typ)
 
             self.schemas[tmp_name]["attributes"] = attr_lst
             self.schemas[tmp_name]["types"] = type_lst
@@ -116,8 +118,8 @@ class Lexer(object):
                 dummy_line[2] = tmp_name
                 i = 5
                 for attr in attr_lst:
-            	    dummy_line[i] = self.tables[atom][row][attr]
-            	    i = i+1
+                    dummy_line[i] = self.tables[atom][row][attr]
+                    i = i+1
 
                 dummy_line[5] = "(\"" + dummy_line[5]
                 dummy_line[-1] = dummy_line[-1] + ");"
@@ -126,44 +128,48 @@ class Lexer(object):
             return tmp_name
         # Handle selections
         elif expr == "select":
-        	sel = " ".join(line)
-        	count = 0
-        	index = 0
-        	for c in sel:
-        		index += 1
-        		if c == '(':
-        			count += 1
-        		if c == ')':
-        			count -= 1
-        			if (count == 0) & (c != sel[0]):
-        				break
+            sel = " ".join(line)
+            count = 0
+            index = 0
+            for c in sel:
+                index += 1
+                if c == '(':
+                    count += 1
+                if c == ')':
+                    count -= 1
+                    if (count == 0) & (c != sel[0]):
+                        break
 
-        	# Evaluates atomic expression and returns temp table name holding relation
-        	atom = sel[index+1:len(sel)].split(" ")
-        	index = -1
-        	for word in line:
-        		index += 1
-        		if word == atom[0]:
-        			break
+            # Evaluates atomic expression and returns temp table name holding relation
+            atom = sel[index+1:len(sel)].split(" ")
+            index = -1
+            for word in line:
+                index += 1
+                if word == atom[0]:
+                    break
 
-        	atom = self.evaluateAtomic(atom)
+            atom = self.evaluateAtomic(atom)
 
-        	# Make a dummy line for fake select request to call select funtion
-        	dummy_line = [' ']*(4+(index-1))
-        	dummy_line[0] = tmp_name
-        	dummy_line[1] = '<-'
-        	dummy_line[2] = 'select'
-        	for i in range(1,index):
-        		dummy_line[i+2] = line[i]
-        	dummy_line[-1] = atom
+            self.schemas[tmp_name]["attributes"] = self.schemas[atom]["attributes"]
+            self.schemas[tmp_name]["types"] = self.schemas[atom]["types"]
+            self.primary_keys[tmp_name] = self.primary_keys[atom]
 
-        	# Call select to fill up temp table to return
-        	self.select(dummy_line)
+            # Make a dummy line for fake select request to call select funtion
+            dummy_line = [' ']*(4+(index-1))
+            dummy_line[0] = tmp_name
+            dummy_line[1] = '<-'
+            dummy_line[2] = 'select'
+            for i in range(1,index):
+                dummy_line[i+2] = line[i]
+            dummy_line[-1] = atom + ';'
 
-        	return tmp_name
+            # Call select to fill up temp table to return
+            self.select(dummy_line)
+
+            return tmp_name
         # Handle renaming
         elif expr == "rename":
-        	# Get attribute list
+            # Get attribute list
             i = 1
             while True:
                 if line[i][-1] == ')':
@@ -190,14 +196,14 @@ class Lexer(object):
             self.primary_keys[tmp_name] = attr_lst
 
             if len(self.schemas[atom]["attributes"]) != len(self.schemas[tmp_name]["attributes"]):
-            	print("ERROR! Number of attributes don't match")
-            	return
+                print("ERROR! Number of attributes don't match")
+                return
 
              # Get list of attribute types
             type_lst = []
             for atr, typ in zip(self.schemas[tmp_name]["attributes"], self.schemas[atom]["types"]):
-            	if atr in attr_lst:
-            		type_lst.append(typ)
+                if atr in attr_lst:
+                    type_lst.append(typ)
             self.schemas[tmp_name]["types"] = type_lst
 
             # Write dummy insert request containing entry info to pass to insert
@@ -206,8 +212,8 @@ class Lexer(object):
                 dummy_line[2] = tmp_name
                 i = 5
                 for attr in self.schemas[atom]["attributes"]:
-            	    dummy_line[i] = self.tables[atom][row][attr]
-            	    i = i+1
+                    dummy_line[i] = self.tables[atom][row][attr]
+                    i = i+1
 
                 dummy_line[5] = "(\"" + dummy_line[5]
                 dummy_line[-1] = dummy_line[-1] + ");"
@@ -216,189 +222,192 @@ class Lexer(object):
             return tmp_name
         # Handle Relational Algebra
         elif ('+' in line) | ('-' in line) | ('*' in line) | ('&' in line):
-        	line = " ".join(line)
-        	i = self.getAtom(line)	# Returns the index of the operator
-        	# Split into left and right sides
-        	left = line[0:i-1]
-        	right = line[i+2:len(line)]
-        	#Evaluate each atomic expression and return their temp table names
-        	lname = self.evaluateAtomic(left.split(" "))
-        	rname = self.evaluateAtomic(right.split(" "))
+            line = " ".join(line)
+            i = self.getAtom(line)  # Returns the index of the operator
+            # Split into left and right sides
+            if i == -1:
+                line = line[1:len(line)-1].split(" ")
+                return self.evaluateExpr(line)
+            left = line[0:i-1]
+            right = line[i+2:len(line)]
+            #Evaluate each atomic expression and return their temp table names
+            lname = self.evaluateAtomic(left.split(" "))
+            rname = self.evaluateAtomic(right.split(" "))
 
             # Handle Union
-        	if line[i] == '+':
-        		# Check if relation is union compatible
-	            if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
-	                for types in self.schemas[lname]["types"]:
-	                	if types not in self.schemas[rname]["types"]:
-	                	    print("ERROR! Relation is not union compatible")
-	                	    return tmp_name
+            if line[i] == '+':
+                # Check if relation is union compatible
+                if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
+                    for types in self.schemas[lname]["types"]:
+                        if types not in self.schemas[rname]["types"]:
+                            print("ERROR! Relation is not union compatible")
+                            return tmp_name
 
-	            # Fill attributes, types, and keys
-	            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
-	            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
-	            self.primary_keys[tmp_name] = self.primary_keys[lname]
+                # Fill attributes, types, and keys
+                self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
+                self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
+                self.primary_keys[tmp_name] = self.primary_keys[lname]
 
-	            # Add first table
-	            for row in self.tables[lname]:
-	            	dummy_line = [' ']*(5+len(self.schemas[lname]["attributes"]))
-	            	dummy_line[2] = tmp_name
-	            	i = 5
-	            	for attr in self.schemas[lname]["attributes"]:
-	            	    dummy_line[i] = self.tables[lname][row][attr]
-	            	    i = i+1
+                # Add first table
+                for row in self.tables[lname]:
+                    dummy_line = [' ']*(5+len(self.schemas[lname]["attributes"]))
+                    dummy_line[2] = tmp_name
+                    i = 5
+                    for attr in self.schemas[lname]["attributes"]:
+                        dummy_line[i] = self.tables[lname][row][attr]
+                        i = i+1
 
-	            	dummy_line[5] = "(\"" + dummy_line[5]
-	            	dummy_line[-1] = dummy_line[-1] + ");"
-	            	self.insert(dummy_line)
+                    dummy_line[5] = "(\"" + dummy_line[5]
+                    dummy_line[-1] = dummy_line[-1] + ");"
+                    self.insert(dummy_line)
 
-	            # Append second table
-	            for row in self.tables[rname]:
-	            	dummy_line = [' ']*(5+len(self.schemas[rname]["attributes"]))
-	            	dummy_line[2] = tmp_name
-	            	i = 5
-	            	for attr in self.schemas[rname]["attributes"]:
-	            	    dummy_line[i] = self.tables[rname][row][attr]
-	            	    i = i+1
+                # Append second table
+                for row in self.tables[rname]:
+                    dummy_line = [' ']*(5+len(self.schemas[rname]["attributes"]))
+                    dummy_line[2] = tmp_name
+                    i = 5
+                    for attr in self.schemas[rname]["attributes"]:
+                        dummy_line[i] = self.tables[rname][row][attr]
+                        i = i+1
 
-	            	dummy_line[5] = "(\"" + dummy_line[5]
-	            	dummy_line[-1] = dummy_line[-1] + ");"
-	            	self.insert(dummy_line)
+                    dummy_line[5] = "(\"" + dummy_line[5]
+                    dummy_line[-1] = dummy_line[-1] + ");"
+                    self.insert(dummy_line)
 
-	            return tmp_name	# Holds name of tmp table
-	        # Handle Difference
-        	elif line[i] == '-':
-        		# Check if relation is union compatible
-	            if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
-	                for types in self.schemas[lname]["types"]:
-	                	if types not in self.schemas[rname]["types"]:
-	                	    print("ERROR! Relation is not union compatible")
-	                	    return tmp_name
+                return tmp_name # Holds name of tmp table
+            # Handle Difference
+            elif line[i] == '-':
+                # Check if relation is union compatible
+                if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
+                    for types in self.schemas[lname]["types"]:
+                        if types not in self.schemas[rname]["types"]:
+                            print("ERROR! Relation is not union compatible")
+                            return tmp_name
 
-	            # Fill attributes, types, and keys
-	            self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
-	            self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
-	            self.primary_keys[tmp_name] = self.primary_keys[lname]
+                # Fill attributes, types, and keys
+                self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
+                self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
+                self.primary_keys[tmp_name] = self.primary_keys[lname]
 
-	            # List to manipulate to hold every tuple in the difference
-	            entries = []
-	            # Add left side of the expression
-	            for row in self.tables[lname]:
-	            	i = 0
-	            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
-	            	for attr in self.schemas[lname]["attributes"]:
-	            	    entry[i] = self.tables[lname][row][attr]
-	            	    i = i+1
-	            	entries.append(entry)
+                # List to manipulate to hold every tuple in the difference
+                entries = []
+                # Add left side of the expression
+                for row in self.tables[lname]:
+                    i = 0
+                    entry = [' ']*(len(self.schemas[lname]["attributes"]))
+                    for attr in self.schemas[lname]["attributes"]:
+                        entry[i] = self.tables[lname][row][attr]
+                        i = i+1
+                    entries.append(entry)
 
-	            for row in self.tables[rname]:
-	            	i = 0
-	            	entry = [' ']*(len(self.schemas[lname]["attributes"]))
-	            	for attr in self.schemas[rname]["attributes"]:
-	            	    entry[i] = self.tables[rname][row][attr]
-	            	    i = i+1
-	            	if entry in entries:
-	            		entries.remove(entry)
+                for row in self.tables[rname]:
+                    i = 0
+                    entry = [' ']*(len(self.schemas[lname]["attributes"]))
+                    for attr in self.schemas[rname]["attributes"]:
+                        entry[i] = self.tables[rname][row][attr]
+                        i = i+1
+                    if entry in entries:
+                        entries.remove(entry)
 
-	            for entry in entries:
-	            	dummy_line = [' ']*(5+len(entry))
-	            	dummy_line[2] = tmp_name
-	            	i = 0
-	            	for attr in self.schemas[rname]["attributes"]:
-	            	    dummy_line[i+5] = entry[i]
-	            	    i = i+1
+                for entry in entries:
+                    dummy_line = [' ']*(5+len(entry))
+                    dummy_line[2] = tmp_name
+                    i = 0
+                    for attr in self.schemas[rname]["attributes"]:
+                        dummy_line[i+5] = entry[i]
+                        i = i+1
 
-	            	dummy_line[5] = "(\"" + dummy_line[5]
-	            	dummy_line[-1] = dummy_line[-1] + ");"
-	            	self.insert(dummy_line)
+                    dummy_line[5] = "(\"" + dummy_line[5]
+                    dummy_line[-1] = dummy_line[-1] + ");"
+                    self.insert(dummy_line)
 
-	            return tmp_name
-        	# Handle Product
-        	elif line[i] == '*':
-        		# Get list of attributes
-        	    attr_lst = []
-	            for attr in self.schemas[lname]["attributes"]:
-	            	attr_lst.append(attr)
-	            for attr in self.schemas[rname]["attributes"]:
-	            	attr_lst.append(attr)
-	            self.schemas[tmp_name]["attributes"] = attr_lst
-	            self.primary_keys[tmp_name] = attr_lst
+                return tmp_name
+            # Handle Product
+            elif line[i] == '*':
+                # Get list of attributes
+                attr_lst = []
+                for attr in self.schemas[lname]["attributes"]:
+                    attr_lst.append(attr)
+                for attr in self.schemas[rname]["attributes"]:
+                    attr_lst.append(attr)
+                self.schemas[tmp_name]["attributes"] = attr_lst
+                self.primary_keys[tmp_name] = attr_lst
 
-	            # Get list of types
-	            type_lst = []
-	            for t in self.schemas[lname]["types"]:
-	            	type_lst.append(t)
-	            for t in self.schemas[rname]["types"]:
-	            	type_lst.append(t)
-	            self.schemas[tmp_name]["types"] = type_lst
+                # Get list of types
+                type_lst = []
+                for t in self.schemas[lname]["types"]:
+                    type_lst.append(t)
+                for t in self.schemas[rname]["types"]:
+                    type_lst.append(t)
+                self.schemas[tmp_name]["types"] = type_lst
 
-	            # Iterature through tuples and implement product
-	            for row in self.tables[lname]:
-	            	pre = []
-	            	for attr in self.schemas[lname]["attributes"]:
-	            		pre.append(self.tables[lname][row][attr])
-	            	for r in self.tables[rname]:
-	            		app = []
-		            	for attr in self.schemas[rname]["attributes"]:
-		            		app.append(self.tables[rname][r][attr])
-		            	new_tuple = pre + app
+                # Iterature through tuples and implement product
+                for row in self.tables[lname]:
+                    pre = []
+                    for attr in self.schemas[lname]["attributes"]:
+                        pre.append(self.tables[lname][row][attr])
+                    for r in self.tables[rname]:
+                        app = []
+                        for attr in self.schemas[rname]["attributes"]:
+                            app.append(self.tables[rname][r][attr])
+                        new_tuple = pre + app
 
-		            	dummy_line = [' ', ' ', tmp_name, ' ', ' ']
-		            	dummy_line[2] = tmp_name
-		            	dummy_line = dummy_line + new_tuple
-		            	dummy_line[5] = "(\"" + dummy_line[5]
-		            	dummy_line[-1] = dummy_line[-1] + ");"
-		            	self.insert(dummy_line)
+                        dummy_line = [' ', ' ', tmp_name, ' ', ' ']
+                        dummy_line[2] = tmp_name
+                        dummy_line = dummy_line + new_tuple
+                        dummy_line[5] = "(\"" + dummy_line[5]
+                        dummy_line[-1] = dummy_line[-1] + ");"
+                        self.insert(dummy_line)
 
-	            return tmp_name
-        	# Handle Natural Join
-        	elif line[i] == '&':
-        		# Find common attributes
-        		attr_lst = []
-        		for attr in self.schemas[lname]["attributes"]:
-        			if attr in self.schemas[rname]["attributes"]:
-        				attr_lst.append(attr)
+                return tmp_name
+            # Handle Natural Join
+            elif line[i] == '&':
+                # Find common attributes
+                attr_lst = []
+                for attr in self.schemas[lname]["attributes"]:
+                    if attr in self.schemas[rname]["attributes"]:
+                        attr_lst.append(attr)
 
-        		# Get list of attributes and types
-        		attrs = []
-        		types = []
-        		for a, t in zip(self.schemas[lname]["attributes"], self.schemas[lname]["types"]):
-        			attrs.append(a)
-        			types.append(t)
-        		for a, t in zip(self.schemas[rname]["attributes"], self.schemas[rname]["types"]):
-        			if a not in attr_lst:
-        				attrs.append(a)
-        				types.append(t)
-        		self.schemas[tmp_name]["attributes"] = attrs
-        		self.schemas[tmp_name]["types"] = types
-        		self.primary_keys[tmp_name] = attrs
+                # Get list of attributes and types
+                attrs = []
+                types = []
+                for a, t in zip(self.schemas[lname]["attributes"], self.schemas[lname]["types"]):
+                    attrs.append(a)
+                    types.append(t)
+                for a, t in zip(self.schemas[rname]["attributes"], self.schemas[rname]["types"]):
+                    if a not in attr_lst:
+                        attrs.append(a)
+                        types.append(t)
+                self.schemas[tmp_name]["attributes"] = attrs
+                self.schemas[tmp_name]["types"] = types
+                self.primary_keys[tmp_name] = attrs
 
-        		# Iterate through tuples and implement natural join
-        		for row in self.tables[lname]:
-        			for row2 in self.tables[rname]:
-        				match = True
-        				for attr in attr_lst:
-        					match = match & (self.tables[lname][row][attr] == self.tables[rname][row2][attr])
-        				if match:
-        					new_tuple = []
-        					for a in self.schemas[lname]["attributes"]:
-        						new_tuple.append(self.tables[lname][row][a])
-        					for a in self.schemas[rname]["attributes"]:
-        						if a not in attr_lst:
-        							new_tuple.append(self.tables[rname][row2][a])
-        					# Insert dummy line
-        					dummy_line = [' ', ' ', tmp_name, ' ', ' ']
-        					dummy_line[2] = tmp_name
-        					dummy_line = dummy_line + new_tuple
-        					dummy_line[5] = "(\"" + dummy_line[5]
-        					dummy_line[-1] = dummy_line[-1] + ");"
-        					self.insert(dummy_line)
+                # Iterate through tuples and implement natural join
+                for row in self.tables[lname]:
+                    for row2 in self.tables[rname]:
+                        match = True
+                        for attr in attr_lst:
+                            match = match & (self.tables[lname][row][attr] == self.tables[rname][row2][attr])
+                        if match:
+                            new_tuple = []
+                            for a in self.schemas[lname]["attributes"]:
+                                new_tuple.append(self.tables[lname][row][a])
+                            for a in self.schemas[rname]["attributes"]:
+                                if a not in attr_lst:
+                                    new_tuple.append(self.tables[rname][row2][a])
+                            # Insert dummy line
+                            dummy_line = [' ', ' ', tmp_name, ' ', ' ']
+                            dummy_line[2] = tmp_name
+                            dummy_line = dummy_line + new_tuple
+                            dummy_line[5] = "(\"" + dummy_line[5]
+                            dummy_line[-1] = dummy_line[-1] + ");"
+                            self.insert(dummy_line)
 
-        		return tmp_name
+                return tmp_name
             
         # Handle atomic expression
         else:
-        	return self.evaluateAtomic(line)
+            return self.evaluateAtomic(line)
 
     # Evaluates an atomic expression
     def evaluateAtomic(self, line):
@@ -410,16 +419,16 @@ class Lexer(object):
             return self.evaluateExpr(line)
         # Case for relation name
         else:
-        	return line
+            return line
         
-	# Parses a relational query
+    # Parses a relational query
     def relational(self, line):
-    	# Get basic info from line
+        # Get basic info from line
         expr = line[6:]
         table = line[2]
 
         # Evaluate the relation
-        name = self.evaluateExpr(expr)	# Name of the temporary table that has the solution
+        name = self.evaluateExpr(expr)  # Name of the temporary table that has the solution
 
         # Copy table from temporary table by writing dummy insert requests
         for row in self.tables[name]:
@@ -427,8 +436,8 @@ class Lexer(object):
             dummy_line[2] = table
             i = 5
             for attr in self.schemas[name]["attributes"]:
-            	dummy_line[i] = self.tables[name][row][attr]
-            	i += 1
+                dummy_line[i] = self.tables[name][row][attr]
+                i += 1
 
             dummy_line[5] = "(\"" + dummy_line[5]
             dummy_line[-1] = dummy_line[-1] + ");"
@@ -813,7 +822,7 @@ class Lexer(object):
                     for attr_name in table[row_id].keys():
                         if attr_name == lop:
                             table[row_id][attr_name] = rop
-		
+
         
      # Inserting values into a table
     def insert(self, line):
@@ -824,18 +833,18 @@ class Lexer(object):
         
         # Handle relational queries
         if line[5] == "RELATION":
-        	# Solve relation
+            # Solve relation
             self.relational(line)
 
             # Clean up temporary tables
             entries = []
             for entry in self.tables.keys():
-            	if "tmp" in entry:
-            		entries.append(entry)
+                if "tmp" in entry:
+                    entries.append(entry)
             for entry in entries:
-            	del self.tables[entry]
-            	del self.schemas[entry]
-            	del self.primary_keys[entry]
+                del self.tables[entry]
+                del self.schemas[entry]
+                del self.primary_keys[entry]
         else:
             # Grab the values to be inserted
             values = line[5:]
@@ -899,9 +908,9 @@ class Lexer(object):
         conditionListOr = []
 
         # since we're making a new table, this makes sure it doesn't exist yet
-        if line[0].lower() in self.tables.keys():
-            print("Error, table already exists")
-            return
+        #if line[0].lower() in self.tables.keys():
+            #print("Error, table already exists")
+            #return
         
         # sets up the new table
         self.tables[line[0].lower()] = {}  
@@ -1098,16 +1107,16 @@ class Lexer(object):
             line = line.split(" ")
             return self.evaluateExpr(line)
         else:
-        	return line
+            return line
         
-		# Parses a relational query
+        # Parses a relational query
     def relational(self, line):
-    	# Get basic info from line
+        # Get basic info from line
         expr = line[6:]
         table = line[2]
 
         # Evaluate the relation
-        name = self.evaluateExpr(expr)	# Name of the temporary table that has the solution
+        name = self.evaluateExpr(expr)  # Name of the temporary table that has the solution
 
         # Copy table from temporary table by writing dummy insert requests
         for row in self.tables[name]:
@@ -1115,8 +1124,8 @@ class Lexer(object):
             dummy_line[2] = table
             i = 5
             for attr in self.schemas[name]["attributes"]:
-            	dummy_line[i] = self.tables[name][row][attr]
-            	i += 1
+                dummy_line[i] = self.tables[name][row][attr]
+                i += 1
 
             dummy_line[5] = "(\"" + dummy_line[5]
             dummy_line[-1] = dummy_line[-1] + ");"
@@ -1188,6 +1197,8 @@ def Main():
     # Opens the file "test.txt" from the current working directory.
     __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    lexicon = Lexer(os.path.join(__location__, 'test_alt.txt'))
+    lexicon = Lexer(os.path.join(__location__, 'test.txt'))
     
-Main() # Needed to make Main work.     
+
+Main() # Needed to make Main work.    
+=======

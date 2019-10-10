@@ -8,20 +8,23 @@ INSERT INTO animals VALUES FROM ("Joe", "bird", 2);
 
 SHOW animals;
 
-dogs <- select (kind == "dog") animals;
-old_dogs <- select (age > 10) dogs;
+CREATE TABLE species (kind VARCHAR(8)) PRIMARY KEY (kind);
 
-cats_or_dogs <- dogs + (select (kind == "cat") animals);
-
-CREATE TABLE species (kind VARCHAR(10)) PRIMARY KEY (kind);
-
-INSERT INTO species VALUES FROM RELATION project (kind) animals;
+INSERT INTO species VALUES FROM RELATION (project (kind) animals) - (project (kind) (select (kind == "dog") animals));
+SHOW species;
 
 a <- rename (aname, akind) (project (name, kind) animals);
+SHOW a;
+
 common_names <- project (name) (select (aname == name && akind != kind) (a * animals));
 answer <- common_names;
 
 SHOW answer;
+
+dogs <- select (kind == "dog") animals;
+old_dogs <- select (age > 10) dogs;
+
+cats_or_dogs <- dogs + (select (kind == "cat") animals);
 
 WRITE animals;
 CLOSE animals;
