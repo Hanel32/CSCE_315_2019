@@ -8,7 +8,11 @@ INSERT INTO animals VALUES FROM ("Joe", "bird", 2);
 
 SHOW animals;
 
-INSERT INTO species VALUES FROM RELATION (project (kind) animals) - (project (kind) (select (kind == "dog") animals));
+CREATE TABLE species (name VARCHAR(20), kind VARCHAR(8), years INTEGER) PRIMARY KEY (name, kind);
+
+SHOW species;
+
+#INSERT INTO species VALUES FROM RELATION (project (kind) animals) - (project (kind) (select (kind == "dog") animals));
 SHOW species;
 
 a <- rename (aname, akind) (project (name, kind) animals);

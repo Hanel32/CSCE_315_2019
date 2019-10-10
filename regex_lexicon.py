@@ -447,8 +447,20 @@ class Lexer(object):
 
     # Evaluates condition in simple form of "operand operator operand"
     def evaluateCondition(self, condition, tableToCheckFrom, tableEntry) :
+
+        #print("condition:")
+        #print(condition)
         
         entryAttrib = self.tables[tableToCheckFrom][tableEntry][condition[0]]
+        entryToCheck = self.tables[tableToCheckFrom][tableEntry]
+
+        #print("entryToCheck:")
+        #print(entryToCheck)
+
+        # print("entryToCheck[condition[0]]:")
+        # print(entryToCheck[condition[0]])
+        # print("entryToCheck[condition[2]]:")
+        # print(entryToCheck[condition[2]])
 
         # determines if we're comparing a string literal or a number
         isNumber = False
@@ -468,21 +480,63 @@ class Lexer(object):
         if condition[1] == "==" :
             if entryAttrib == condition[2]:
                 return True
+
+            try :
+                if entryToCheck[condition[0]] == entryToCheck[condition[2]] :
+                    return True
+            except KeyError:
+                return False
+
         elif condition[1] == "!=" :
             if entryAttrib != condition[2]:
                 return True
+
+            try :
+                if entryToCheck[condition[0]] != entryToCheck[condition[2]] :
+                    return True
+            except KeyError:
+                return False
+
         elif condition[1] == "<" :
             if entryAttrib < condition[2]:
                 return True
+
+            try :
+                if entryToCheck[condition[0]] < entryToCheck[condition[2]] :
+                    return True
+            except KeyError:
+                return False
+
         elif condition[1] == ">" :
             if entryAttrib > condition[2]:
                 return True
+
+            try :
+                if entryToCheck[condition[0]] > entryToCheck[condition[2]] :
+                    return True
+            except KeyError:
+                return False
+
         elif condition[1] == "<=" :
             if entryAttrib <= condition[2]:
                 return True
+
+            try :
+                if entryToCheck[condition[0]] <= entryToCheck[condition[2]] :
+                    return True
+            except KeyError:
+                return False
+
         elif condition[1] == ">=" :
             if entryAttrib >= condition[2]:
                 return True
+
+            try :
+                if entryToCheck[condition[0]] >= entryToCheck[condition[2]] :
+                    return True
+            except KeyError:
+                return False
+
         return False
 
     # Name is self explanitory
@@ -564,8 +618,17 @@ class Lexer(object):
         # This should contain only the commands to parse (parentheses included)
         commandsOriginal = selectBlock.copy()
 
-        #print("commandsOriginal:")
-        #print(commandsOriginal)
+        # print("commandsOriginal:")
+        # print(commandsOriginal)
+
+        # print("tableToCheckFrom:")
+        # print(tableToCheckFrom)
+
+        # print("\n~~~~~~~~~~~~<" + tableToCheckFrom + ">~~~~~~~~~~~")
+        # table = self.tables[tableToCheckFrom]
+        # for key in table:
+        #     print(str(table[key]))
+        # print("~~~~~~~~~~~~</" + tableToCheckFrom + ">~~~~~~~~~~\n")
 
         # Find where the parentheses are
         i = 0
@@ -927,6 +990,8 @@ class Lexer(object):
                 indexOfOpen = line.index(tokens)
 
         if line[-1][-1] == ')' : # atomic expression at end
+            # print("the result of this atomic expression is:")
+            # print(self.evaluateExpr(line[indexOfOpen:]))
             tableToInsertTo = self.evaluateExpr(line[indexOfOpen:])
         else:
             tableToInsertTo = line[-1][:-1]
