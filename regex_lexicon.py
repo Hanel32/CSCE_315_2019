@@ -822,7 +822,7 @@ class Lexer(object):
                     for attr_name in table[row_id].keys():
                         if attr_name == lop:
                             table[row_id][attr_name] = rop
-        
+
         
      # Inserting values into a table
     def insert(self, line):
@@ -1199,4 +1199,6 @@ def Main():
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
     lexicon = Lexer(os.path.join(__location__, 'test.txt'))
     
+
 Main() # Needed to make Main work.    
+#=======
