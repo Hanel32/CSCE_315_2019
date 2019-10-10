@@ -40,4 +40,5 @@ CLOSE animals;
 OPEN animals;
 SHOW animals;
 
+
 EXIT;
