@@ -17,12 +17,19 @@ SHOW a;
 common_names <- project (name) (select (aname == name && akind != kind) (a * animals));
 answer <- common_names;
 
-SHOW answer;
+SHOW common_names;
 
 dogs <- select (kind == "dog") animals;
-old_dogs <- select (age > 10) dogs;
+
+SHOW dogs;
+
+old_dogs <- select (years > 10) dogs;
+
+SHOW old_dogs;
 
 cats_or_dogs <- dogs + (select (kind == "cat") animals);
+
+SHOW cats_or_dogs;
 
 WRITE animals;
 CLOSE animals;

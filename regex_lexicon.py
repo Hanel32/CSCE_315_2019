@@ -564,8 +564,8 @@ class Lexer(object):
         # This should contain only the commands to parse (parentheses included)
         commandsOriginal = selectBlock.copy()
 
-        print("commandsOriginal:")
-        print(commandsOriginal)
+        #print("commandsOriginal:")
+        #print(commandsOriginal)
 
         # Find where the parentheses are
         i = 0
@@ -931,10 +931,10 @@ class Lexer(object):
         else:
             tableToInsertTo = line[-1][:-1]
 
-        print("line:")
-        print(line)
-        print("tableToInsertTo:")
-        print(tableToInsertTo)
+        #print("line:")
+        #print(line)
+        #print("tableToInsertTo:")
+        #print(tableToInsertTo)
 
         # since we're making a new table, this makes sure it doesn't exist yet
         #if line[0].lower() in self.tables.keys():
@@ -946,11 +946,11 @@ class Lexer(object):
         # Passes to helper function to actually fill with correct elements
         self.processSelectBlock(line[0].lower(), line[3:-1], tableToInsertTo) # last split is to get rid of semicolon
 
-        print("\n~~~~~~~~~~~~<" + line[0].lower() + ">~~~~~~~~~~~")
-        table = self.tables[line[0].lower()]
-        for key in table:
-            print(str(table[key]))
-        print("~~~~~~~~~~~~</" + str(line[0].lower()) + ">~~~~~~~~~~\n")
+        # print("\n~~~~~~~~~~~~<" + line[0].lower() + ">~~~~~~~~~~~")
+        # table = self.tables[line[0].lower()]
+        # for key in table:
+        #     print(str(table[key]))
+        # print("~~~~~~~~~~~~</" + str(line[0].lower()) + ">~~~~~~~~~~\n")
 
     
     # Projection
