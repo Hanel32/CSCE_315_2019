@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Sep 20 22:10:12 2019
-
 @author: Carson
 """
 import re
@@ -30,11 +29,421 @@ class Lexer(object):
                 return True  # Is an integer.
             else:
                 return False # Is some junk.
-            
-        # Evaluates a condition and returns the bool result (condition must be form of "operand operator operand", so like 6 > 10)
+             
+    # Returns the index of the operator to split expression into left and right components
+    def getAtom(self, line):
+        index = -1
+        # If there are parenthesis, find the end of them
+        # This is the first atomic expression
+        if line[0] == '(':
+            count = 1
+            index = 1
+            while count > 0:
+                if line[index] == '(':
+                    count += 1
+                if line[index] == ')':
+                    count -= 1
+                index += 1
+            index += 1
+        # The first atomic expression is a relation name, so return whichever operator is first in the string
+        else:
+            for c in line:
+                index += 1
+                if (c == '+') | (c == '-') | (c == '*') | (c == '&'):
+                    break
+        if index == len(line)+1:
+            return -1
+        else:
+            return index
     
-    # Brenden's select helper methods start
-    #-------------------------------------------------------------------------------------------------------------------------
+    # Evaluates an expression
+    def evaluateExpr(self, line):
+        line = " ".join(line).replace(";","").split(" ")
+        expr = line[0]  # Either holds a command or the beginning of a relation
+
+        # Make a temporary table with a unique name
+        tmp_name = "tmp1"
+        i = 1
+        while tmp_name in self.tables.keys():
+            i += 1
+            tmp_name = "tmp" + str(i)
+        self.tables[tmp_name] = {}
+        self.schemas[tmp_name] = {}
+        self.primary_keys[tmp_name] = {}
+
+        # Handle projections
+        if expr == "project":
+            # Get attribute list
+            i = 1
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+
+            attr_lst = line[1:i]
+            # Remove commas and parenthsis
+            attr_lst[0] = attr_lst[0][1:]
+            attr_lst[-1] = attr_lst[-1][:-1]
+            attr_lst = " ".join(attr_lst).replace(",", "")
+            attr_lst = attr_lst.split(" ")
+            # Evaluate atomic expression
+            atom = line[i:]
+            atom = self.evaluateAtomic(atom)
+
+            # Get list of attribute types
+            type_lst = []
+            for atr, typ in zip(self.schemas[atom]["attributes"], self.schemas[atom]["types"]):
+                if atr in attr_lst:
+                    type_lst.append(typ)
+
+            self.schemas[tmp_name]["attributes"] = attr_lst
+            self.schemas[tmp_name]["types"] = type_lst
+            self.primary_keys[tmp_name] = attr_lst
+
+            # Check if source is a table
+            if not atom in self.tables.keys():
+                print("ERROR! Source table does not exist")
+                return
+
+            # Make sure attributes match
+            for attr in attr_lst:
+                if not attr in self.schemas[atom]["attributes"]:
+                    print("ERROR! Attribute", attr, "does not exist")
+                    return
+            
+            # Write dummy insert request containing entry info to pass to insert
+            for row in self.tables[atom]:
+                dummy_line = [' ']*(5+len(attr_lst))
+                dummy_line[2] = tmp_name
+                i = 5
+                for attr in attr_lst:
+                    dummy_line[i] = self.tables[atom][row][attr]
+                    i = i+1
+
+                dummy_line[5] = "(\"" + dummy_line[5]
+                dummy_line[-1] = dummy_line[-1] + ");"
+                self.insert(dummy_line)
+
+            return tmp_name
+        # Handle selections
+        elif expr == "select":
+            sel = " ".join(line)
+            count = 0
+            index = 0
+            for c in sel:
+                index += 1
+                if c == '(':
+                    count += 1
+                if c == ')':
+                    count -= 1
+                    if (count == 0) & (c != sel[0]):
+                        break
+
+            # Evaluates atomic expression and returns temp table name holding relation
+            atom = sel[index+1:len(sel)].split(" ")
+            index = -1
+            for word in line:
+                index += 1
+                if word == atom[0]:
+                    break
+
+            atom = self.evaluateAtomic(atom)
+
+            self.schemas[tmp_name]["attributes"] = self.schemas[atom]["attributes"]
+            self.schemas[tmp_name]["types"] = self.schemas[atom]["types"]
+            self.primary_keys[tmp_name] = self.primary_keys[atom]
+
+            # Make a dummy line for fake select request to call select funtion
+            dummy_line = [' ']*(4+(index-1))
+            dummy_line[0] = tmp_name
+            dummy_line[1] = '<-'
+            dummy_line[2] = 'select'
+            for i in range(1,index):
+                dummy_line[i+2] = line[i]
+            dummy_line[-1] = atom + ';'
+
+            # Call select to fill up temp table to return
+            self.select(dummy_line)
+
+            return tmp_name
+        # Handle renaming
+        elif expr == "rename":
+            # Get attribute list
+            i = 1
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+
+            attr_lst = line[1:i]
+            # Remove commas and parenthsis
+            attr_lst[0] = attr_lst[0][1:]
+            attr_lst[-1] = attr_lst[-1][:-1]
+            attr_lst = " ".join(attr_lst).replace(",", "")
+            attr_lst = attr_lst.split(" ")
+            # Evaluate atomic expression
+            atom = line[i:]
+            atom = self.evaluateAtomic(atom)
+
+            # Check if source is a table
+            if atom not in self.tables.keys():
+                print("ERROR! Source table does not exist")
+                return
+
+            self.schemas[tmp_name]["attributes"] = attr_lst
+            self.primary_keys[tmp_name] = attr_lst
+
+            if len(self.schemas[atom]["attributes"]) != len(self.schemas[tmp_name]["attributes"]):
+                print("ERROR! Number of attributes don't match")
+                return
+
+             # Get list of attribute types
+            type_lst = []
+            for atr, typ in zip(self.schemas[tmp_name]["attributes"], self.schemas[atom]["types"]):
+                if atr in attr_lst:
+                    type_lst.append(typ)
+            self.schemas[tmp_name]["types"] = type_lst
+
+            # Write dummy insert request containing entry info to pass to insert
+            for row in self.tables[atom]:
+                dummy_line = [' ']*(5+len(attr_lst))
+                dummy_line[2] = tmp_name
+                i = 5
+                for attr in self.schemas[atom]["attributes"]:
+                    dummy_line[i] = self.tables[atom][row][attr]
+                    i = i+1
+
+                dummy_line[5] = "(\"" + dummy_line[5]
+                dummy_line[-1] = dummy_line[-1] + ");"
+                self.insert(dummy_line)
+
+            return tmp_name
+        # Handle Relational Algebra
+        elif ('+' in line) | ('-' in line) | ('*' in line) | ('&' in line):
+            line = " ".join(line)
+            i = self.getAtom(line)  # Returns the index of the operator
+            # Split into left and right sides
+            if i == -1:
+                line = line[1:len(line)-1].split(" ")
+                return self.evaluateExpr(line)
+            left = line[0:i-1]
+            right = line[i+2:len(line)]
+            #Evaluate each atomic expression and return their temp table names
+            lname = self.evaluateAtomic(left.split(" "))
+            rname = self.evaluateAtomic(right.split(" "))
+
+            # Handle Union
+            if line[i] == '+':
+                # Check if relation is union compatible
+                if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
+                    for types in self.schemas[lname]["types"]:
+                        if types not in self.schemas[rname]["types"]:
+                            print("ERROR! Relation is not union compatible")
+                            return tmp_name
+
+                # Fill attributes, types, and keys
+                self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
+                self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
+                self.primary_keys[tmp_name] = self.primary_keys[lname]
+
+                # Add first table
+                for row in self.tables[lname]:
+                    dummy_line = [' ']*(5+len(self.schemas[lname]["attributes"]))
+                    dummy_line[2] = tmp_name
+                    i = 5
+                    for attr in self.schemas[lname]["attributes"]:
+                        dummy_line[i] = self.tables[lname][row][attr]
+                        i = i+1
+
+                    dummy_line[5] = "(\"" + dummy_line[5]
+                    dummy_line[-1] = dummy_line[-1] + ");"
+                    self.insert(dummy_line)
+
+                # Append second table
+                for row in self.tables[rname]:
+                    dummy_line = [' ']*(5+len(self.schemas[rname]["attributes"]))
+                    dummy_line[2] = tmp_name
+                    i = 5
+                    for attr in self.schemas[rname]["attributes"]:
+                        dummy_line[i] = self.tables[rname][row][attr]
+                        i = i+1
+
+                    dummy_line[5] = "(\"" + dummy_line[5]
+                    dummy_line[-1] = dummy_line[-1] + ");"
+                    self.insert(dummy_line)
+
+                return tmp_name # Holds name of tmp table
+            # Handle Difference
+            elif line[i] == '-':
+                # Check if relation is union compatible
+                if len(self.schemas[lname]["attributes"]) != len(self.schemas[rname]["attributes"]):
+                    for types in self.schemas[lname]["types"]:
+                        if types not in self.schemas[rname]["types"]:
+                            print("ERROR! Relation is not union compatible")
+                            return tmp_name
+
+                # Fill attributes, types, and keys
+                self.schemas[tmp_name]["attributes"] = self.schemas[lname]["attributes"]
+                self.schemas[tmp_name]["types"] = self.schemas[lname]["types"]
+                self.primary_keys[tmp_name] = self.primary_keys[lname]
+
+                # List to manipulate to hold every tuple in the difference
+                entries = []
+                # Add left side of the expression
+                for row in self.tables[lname]:
+                    i = 0
+                    entry = [' ']*(len(self.schemas[lname]["attributes"]))
+                    for attr in self.schemas[lname]["attributes"]:
+                        entry[i] = self.tables[lname][row][attr]
+                        i = i+1
+                    entries.append(entry)
+
+                for row in self.tables[rname]:
+                    i = 0
+                    entry = [' ']*(len(self.schemas[lname]["attributes"]))
+                    for attr in self.schemas[rname]["attributes"]:
+                        entry[i] = self.tables[rname][row][attr]
+                        i = i+1
+                    if entry in entries:
+                        entries.remove(entry)
+
+                for entry in entries:
+                    dummy_line = [' ']*(5+len(entry))
+                    dummy_line[2] = tmp_name
+                    i = 0
+                    for attr in self.schemas[rname]["attributes"]:
+                        dummy_line[i+5] = entry[i]
+                        i = i+1
+
+                    dummy_line[5] = "(\"" + dummy_line[5]
+                    dummy_line[-1] = dummy_line[-1] + ");"
+                    self.insert(dummy_line)
+
+                return tmp_name
+            # Handle Product
+            elif line[i] == '*':
+                # Get list of attributes
+                attr_lst = []
+                for attr in self.schemas[lname]["attributes"]:
+                    attr_lst.append(attr)
+                for attr in self.schemas[rname]["attributes"]:
+                    attr_lst.append(attr)
+                self.schemas[tmp_name]["attributes"] = attr_lst
+                self.primary_keys[tmp_name] = attr_lst
+
+                # Get list of types
+                type_lst = []
+                for t in self.schemas[lname]["types"]:
+                    type_lst.append(t)
+                for t in self.schemas[rname]["types"]:
+                    type_lst.append(t)
+                self.schemas[tmp_name]["types"] = type_lst
+
+                # Iterature through tuples and implement product
+                for row in self.tables[lname]:
+                    pre = []
+                    for attr in self.schemas[lname]["attributes"]:
+                        pre.append(self.tables[lname][row][attr])
+                    for r in self.tables[rname]:
+                        app = []
+                        for attr in self.schemas[rname]["attributes"]:
+                            app.append(self.tables[rname][r][attr])
+                        new_tuple = pre + app
+
+                        dummy_line = [' ', ' ', tmp_name, ' ', ' ']
+                        dummy_line[2] = tmp_name
+                        dummy_line = dummy_line + new_tuple
+                        dummy_line[5] = "(\"" + dummy_line[5]
+                        dummy_line[-1] = dummy_line[-1] + ");"
+                        self.insert(dummy_line)
+
+                return tmp_name
+            # Handle Natural Join
+            elif line[i] == '&':
+                # Find common attributes
+                attr_lst = []
+                for attr in self.schemas[lname]["attributes"]:
+                    if attr in self.schemas[rname]["attributes"]:
+                        attr_lst.append(attr)
+
+                # Get list of attributes and types
+                attrs = []
+                types = []
+                for a, t in zip(self.schemas[lname]["attributes"], self.schemas[lname]["types"]):
+                    attrs.append(a)
+                    types.append(t)
+                for a, t in zip(self.schemas[rname]["attributes"], self.schemas[rname]["types"]):
+                    if a not in attr_lst:
+                        attrs.append(a)
+                        types.append(t)
+                self.schemas[tmp_name]["attributes"] = attrs
+                self.schemas[tmp_name]["types"] = types
+                self.primary_keys[tmp_name] = attrs
+
+                # Iterate through tuples and implement natural join
+                for row in self.tables[lname]:
+                    for row2 in self.tables[rname]:
+                        match = True
+                        for attr in attr_lst:
+                            match = match & (self.tables[lname][row][attr] == self.tables[rname][row2][attr])
+                        if match:
+                            new_tuple = []
+                            for a in self.schemas[lname]["attributes"]:
+                                new_tuple.append(self.tables[lname][row][a])
+                            for a in self.schemas[rname]["attributes"]:
+                                if a not in attr_lst:
+                                    new_tuple.append(self.tables[rname][row2][a])
+                            # Insert dummy line
+                            dummy_line = [' ', ' ', tmp_name, ' ', ' ']
+                            dummy_line[2] = tmp_name
+                            dummy_line = dummy_line + new_tuple
+                            dummy_line[5] = "(\"" + dummy_line[5]
+                            dummy_line[-1] = dummy_line[-1] + ");"
+                            self.insert(dummy_line)
+
+                return tmp_name
+            
+        # Handle atomic expression
+        else:
+            return self.evaluateAtomic(line)
+
+    # Evaluates an atomic expression
+    def evaluateAtomic(self, line):
+        line = " ".join(line).replace(";","")
+        # First case of ( expr )
+        if '(' in line:
+            line = line[1:len(line)-1]
+            line = line.split(" ")
+            return self.evaluateExpr(line)
+        # Case for relation name
+        else:
+            return line
+        
+    # Parses a relational query
+    def relational(self, line):
+        # Get basic info from line
+        expr = line[6:]
+        table = line[2]
+
+        # Evaluate the relation
+        name = self.evaluateExpr(expr)  # Name of the temporary table that has the solution
+
+        # Copy table from temporary table by writing dummy insert requests
+        for row in self.tables[name]:
+            dummy_line = [' ']*(5+len(self.schemas[name]["attributes"]))
+            dummy_line[2] = table
+            i = 5
+            for attr in self.schemas[name]["attributes"]:
+                dummy_line[i] = self.tables[name][row][attr]
+                i += 1
+
+            dummy_line[5] = "(\"" + dummy_line[5]
+            dummy_line[-1] = dummy_line[-1] + ");"
+            self.insert(dummy_line)
+
+        return
 
     # Evaluates condition in simple form of "operand operator operand"
     def evaluateCondition(self, condition, tableToCheckFrom, tableEntry) :
@@ -74,7 +483,6 @@ class Lexer(object):
         elif condition[1] == ">=" :
             if entryAttrib >= condition[2]:
                 return True
-
         return False
 
     # Name is self explanitory
@@ -153,7 +561,6 @@ class Lexer(object):
     # This function does not currently have the capability of resolving "a * animals" to a table, I feel like doing that
     # first and replacing that part of the table with the new table name would be the best course of action
     def processSelectBlock(self, tableToInsertTo, selectBlock, tableToCheckFrom):
-
         # This should contain only the commands to parse (parentheses included)
         commandsOriginal = selectBlock.copy()
 
@@ -171,56 +578,40 @@ class Lexer(object):
                 if item[-1] == ")":
                     indexesWithCloseParenthesisOriginal.append(i)
             i += 1
-
         # This replaces all of the commands to something like "True && False || True" in the correct order
         for tableEntry in self.tables[tableToCheckFrom]:
             commands = commandsOriginal.copy()
-
             indexesWithOpenParenthesis = indexesWithOpenParenthesisOriginal.copy()
             indexesWithCloseParenthesis = indexesWithCloseParenthesisOriginal.copy()
-
             # replaces the list of commands with all true and false values
             while len(indexesWithOpenParenthesis) > 0 or len(indexesWithCloseParenthesis) > 0:
                 closeParenthesisIndex = self.findIndexOfCloseParenthesis(indexesWithCloseParenthesis, max(indexesWithOpenParenthesis))
-
                 # if no close parentheses, then do the rest of the line from the last open
                 if closeParenthesisIndex == -1:
                     innerCommandResult = self.processInnerCommands(commands[max(indexesWithOpenParenthesis):], tableToCheckFrom, tableEntry)
                 else:
                     innerCommandResult = self.processInnerCommands(commands[max(indexesWithOpenParenthesis):closeParenthesisIndex + 1], tableToCheckFrom, tableEntry)
-
                 # Replaces the open token with a bool
                 commands[max(indexesWithOpenParenthesis)] = innerCommandResult
-
                 # Gets rid of the other elements I no longer need, this also auto removes parentheses (deletes rest of block that didn't turn to bool)
                 indexingVar = max(indexesWithOpenParenthesis) + 1
                 while indexingVar <= closeParenthesisIndex:
                     commands.pop(max(indexesWithOpenParenthesis) + 1) #since you keep popping, you need to keep popping the same index
                     indexingVar += 1
-
                 indexesWithOpenParenthesis.pop(indexesWithOpenParenthesis.index(max(indexesWithOpenParenthesis)))
-
                 # Used because sometimes (when a token is like "thing))") the index is -1 to indicate that there is no index with a cp
                 if closeParenthesisIndex != -1:
                     indexesWithCloseParenthesis.pop(indexesWithCloseParenthesis.index(closeParenthesisIndex))
-
             # Same logic as inner commands, just final check
             boolStateFromLeft = commands[0]
-
             for token in commands:
                 if token == "&&":
                     boolStateFromLeft = (boolStateFromLeft and commands[commands.index(token) + 1])
                 elif token == "||":
                     boolStateFromLeft = (boolStateFromLeft or commands[commands.index(token) + 1])
-            
             # Insert if statement evaluated true
             if boolStateFromLeft:
                 self.tables[tableToInsertTo][tableEntry] = self.tables[tableToCheckFrom][tableEntry]
-
-        
-    # Brenden's select helper methods end
-    #-------------------------------------------------------------------------------------------------------------------------
-      
 
     # Given knowledge of primary keys, the attibutes of a row, and the values,
     # generate a primary key. Usage of ord() simply transfers characters into
@@ -279,7 +670,6 @@ class Lexer(object):
                     # Parse primary keys
                     self.primary_keys[tablename] = \
                     (" ".join(row[0].split(" ")[1:])[1:-1]).split(" ")
-            
                     # Parse variables, schema
                     for item in row[1:]:
                         var_data   = item.split(" ")
@@ -399,9 +789,45 @@ class Lexer(object):
         
     # Updates some set of the values that matches a criterion to a given value.
     def update(self, line):
-        print("UPDATE")
+        # Checks that the requested table exists
+        table_name = line[1]
+        if table_name not in self.tables.keys():
+            print("ERROR! Attempting to update a null table: " + str(table_name) + "!")
+            return
+
+        # Obtains table value
+        table = self.tables[table_name]
+
+        # Obtains end place of attribute_name
+        i = 6
+        while True:
+            if line[i].lower() == "where":
+                break
+            i += 1
+
+        attribute_name = line[3:i]
+
+        # Removes commas from attribute_name
+        for x in range(len(attribute_name)):
+            attribute_name[x] = attribute_name[x].replace(",", "")
+
+        condition = line[i+1:i+4]
+        condition[2] = condition[2].replace(";", "")
+
+        # Iterates through table, updating any entry that meets the condition
+        temp_table = {}
+        for i in range(0, len(attribute_name), 3):
+            lop = attribute_name[i]
+            mop = attribute_name[i + 1]
+            rop = attribute_name[i + 2]
+            for row_id in table.keys():
+                if condition[0] in table[row_id].keys() and table[row_id][condition[0]] == condition[2]:
+                    for attr_name in table[row_id].keys():
+                        if attr_name == lop:
+                            table[row_id][attr_name] = rop
+
         
-    # Inserting values into a table
+     # Inserting values into a table
     def insert(self, line):
         table_name = line[2]
         if table_name not in self.tables.keys():
@@ -410,18 +836,18 @@ class Lexer(object):
         
         # Handle relational queries
         if line[5] == "RELATION":
-        	# Solve relation
+            # Solve relation
             self.relational(line)
 
             # Clean up temporary tables
             entries = []
             for entry in self.tables.keys():
-            	if "tmp" in entry:
-            		entries.append(entry)
+                if "tmp" in entry:
+                    entries.append(entry)
             for entry in entries:
-            	del self.tables[entry]
-            	del self.schemas[entry]
-            	del self.primary_keys[entry]
+                del self.tables[entry]
+                del self.schemas[entry]
+                del self.primary_keys[entry]
         else:
             # Grab the values to be inserted
             values = line[5:]
@@ -457,7 +883,24 @@ class Lexer(object):
     
     # Delete from a table some subset that matches a condition.
     def delete(self, line):
-        print("TODO! DELETE")
+        # Checks that the requested table exists
+        table_name = line[2]
+        if table_name not in self.tables.keys():
+            print("ERROR! Attempting to delete a null table: " + str(table_name) + "!")
+            return
+
+        # Obtains table value and condition
+        table = self.tables[table_name]
+        condition = line[4:7]
+        condition[2] = condition[2].replace(";", "")
+
+        # Iterates through table, deleting any entry that meets the condition
+        temp = []
+        for row_id in table.keys():
+            if condition[0] in table[row_id].keys() and table[row_id][condition[0]] == condition[2]:
+                temp.append(row_id)
+        for x in temp:
+            table.pop(x)
 
     # Select some subset of the table
     # This should only be called for a full line with only a select call, like
@@ -494,9 +937,9 @@ class Lexer(object):
         print(tableToInsertTo)
 
         # since we're making a new table, this makes sure it doesn't exist yet
-        if line[0].lower() in self.tables.keys():
-            print("Error, table already exists")
-            return
+        #if line[0].lower() in self.tables.keys():
+            #print("Error, table already exists")
+            #return
         
         # sets up the new table
         self.tables[line[0].lower()] = {}  
@@ -509,104 +952,181 @@ class Lexer(object):
             print(str(table[key]))
         print("~~~~~~~~~~~~</" + str(line[0].lower()) + ">~~~~~~~~~~\n")
 
-    # ion
+    
+    # Projection
     def project(self, line):
-        print("TODO! PROJECT")
-        
-    # Renames a table
-    def rename(self, line):
-        print("TODO! RENAME")
-
-    # Evaluates an expression
-    def evaluateExpr(self, line):
-        expr = line[0]
-
-        # Make a temporary table with a unique name
-        tmp_name = "tmp1"
-        i = 1
-        while tmp_name in self.tables.keys():
-        	i += 1
-        	tmp_name = "tmp" + str(i)
-        self.tables[tmp_name] = {}
-        self.schemas[tmp_name] = {}
-        self.primary_keys[tmp_name] = {}
-
-        # Handle projections
-        if expr == "project":
-        	# Get attribute list
+        #If this is the 'base' or project is the final function call, we want to know due to recursive calling
+        if(line[1] == '<-'):
+            new_name = line[0].lower()
+        # starting at the point after the "project" call, finds the end of the condition commands
+            i = 3
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+                
+                # gets just the commands to process
+            attributes = line[3:i]
+        else:
+            #if we are not setting the final table, 
+            new_name = 'temp'
             i = 1
             while True:
                 if line[i][-1] == ')':
                     i += 1
                     break
                 i += 1
+                
+                # gets just the commands to process
+            attributes = line[1:i]
+        # removes the parentheses and commas
+        for x in range(len(attributes)):
+            attributes[x] = attributes[x].replace('(','')
+            attributes[x] = attributes[x].replace(')','')
+            attributes[x] = attributes[x].replace(',','')
 
-            attr_lst = line[1:i]
-            # Remove commas and parenthsis
-            attr_lst[0] = attr_lst[0][1:]
-            attr_lst[-1] = attr_lst[-1][:-1]
-            attr_lst = " ".join(attr_lst).replace(",", "")
-            attr_lst = attr_lst.split(" ")
-            # Evaluate atomic expression
-            atom = line[i:]
-            atom = self.evaluateAtomic(atom)
+        #Now we have the columns, we need to find the table to take them from. If it is a basic call, it should be the next item
+        #If the next item is not a table, then we need to recursively call that function e.g select
+        nextInLine = line[i]
+        #Remove just incase there are any
+        nextInLine = nextInLine.replace('(','')
+        nextInLine = nextInLine.replace(')','')
+        nextInLine = nextInLine.replace(';','')
+        if nextInLine not in self.tables.keys():
+            #NextInLine = parse_commands(line[i:])'
+            nextInLine = self.evaluateExpr(line[i:])
 
-            # Get list of attribute types
-            type_lst = []
-            for atr, typ in zip(self.schemas[atom]["attributes"], self.schemas[atom]["types"]):
-            	if atr in attr_lst:
-            		type_lst.append(typ)
+        #Setup our new table
+        self.tables[new_name] = {}
+        self.schemas[new_name] = {} 
 
-            self.schemas[tmp_name]["attributes"] = attr_lst
-            self.schemas[tmp_name]["types"] = type_lst
-            self.primary_keys[tmp_name] = attr_lst
+        #attributes
+        types      = []
+        keys       = []
+        j = 0
+        while j < len(attributes):
+            for x in range(len(self.schemas[nextInLine]["attributes"])):
+                if(attributes[j] == self.schemas[nextInLine]["attributes"][x]):
+                    types.append(self.schemas[nextInLine]["types"][x])
+            j += 1 
 
-            # Check if source is a table
-            if not atom in self.tables.keys():
-                print("ERROR! Source table does not exist")
-                return
+        #Setup primary keys as well
+        j = 0
+        while j < len(attributes):
+            for x in range(len(self.primary_keys[nextInLine])):
+                if(attributes[j] == self.primary_keys[nextInLine][x]):
+                    keys.append(self.primary_keys[nextInLine][x])
+            j += 1
 
-            # Make sure attributes match
-            for attr in attr_lst:
-                if not attr in self.schemas[atom]["attributes"]:
-                    print("ERROR! Attribute", attr, "does not exist")
-                    return
+        #Setting values for our table
+        self.schemas[new_name]["attributes"] = attributes
+        self.schemas[new_name]["types"]      = types
+        self.primary_keys[new_name]          = keys
+        
+        #Now we need to move actual data from our original table to this table
+        # STILL NEED TODO 
+        for x in self.tables[nextInLine].keys():
+            values = []
+            for y in range(len(attributes)):
+                values.append(self.tables[nextInLine][x][attributes[y]])
             
-            # Write dummy insert request containing entry info to pass to insert
-            for row in self.tables[atom]:
-                dummy_line = [' ']*(5+len(attr_lst))
-                dummy_line[2] = tmp_name
-                i = 5
-                for attr in attr_lst:
-            	    dummy_line[i] = self.tables[atom][row][attr]
-            	    i = i+1
+            schema = self.schemas[new_name]
+            key_rules   = self.primary_keys[new_name]
+            primary_key = self.generate_key(key_rules, schema["attributes"], values)
 
-                dummy_line[5] = "(\"" + dummy_line[5]
-                dummy_line[-1] = dummy_line[-1] + ");"
-                self.insert(dummy_line)
-
-            return tmp_name
-        # Handle selections
-        elif expr == "select":
-            return " ".join(line)
-        # Handle renaming
-        elif expr == "rename":
-            return " ".join(line)
-        # Handle union
-        elif '+' in line:
-            return " ".join(line)
-        # Handle difference
-        elif '-' in line:
-            return " ".join(line)
-        # Handle product
-        elif '*' in line:
-            return " ".join(line)
-        # Handle natural join
-        elif '&' in line:
-            return " ".join(line)
-        # Handle atomic expression
+            self.tables[new_name][primary_key] = {}
+            # Insert the data into the record, indexed by variable name.
+            for varname, val in zip(self.schemas[new_name]["attributes"], values):
+                self.tables[new_name][primary_key][varname] = val
+        return new_name
+    
+    # Renames a table
+    def rename(self, line):
+        #If this is the 'base' or project is the final function call, we want to know due to recursive calling
+        if(line[1] == '<-'):
+            new_name = line[0].lower()
+        # starting at the point after the "project" call, finds the end of the condition commands
+            i = 3
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+                
+                # gets just the commands to process
+            attributes = line[3:i]
         else:
-        	return self.evaluateAtomic(line)
+            #if we are not setting the final table, 
+            new_name = 'temp'
+            i = 1
+            while True:
+                if line[i][-1] == ')':
+                    i += 1
+                    break
+                i += 1
+                
+                # gets just the commands to process
+            attributes = line[1:i]
+
+        # removes the parentheses and commas
+        for x in range(len(attributes)):
+            attributes[x] = attributes[x].replace('(','')
+            attributes[x] = attributes[x].replace(')','') 
+            attributes[x] = attributes[x].replace(',','')
+
+        #Commands are what we columns we want from the original table
+        nextInLine = line[i]
+        #Remove just incase there are any
+        nextInLine = nextInLine.replace('(','')
+        nextInLine = nextInLine.replace(')','')
+        nextInLine = nextInLine.replace(';','')
+        #print(nextInLine)
+        if nextInLine not in self.tables.keys():
+            #NextInLine = parse_commands(line[i:])'
+            nextInLine = self.evaluateExpr(line[i:])
+        #Should not need 'else' if recursive call works
+        #Setup our new table attributes
+        types      = []
+        keys       = []
+        orig_primary_keys = []
+        for x in range(len(self.primary_keys[nextInLine])):
+            orig_primary_keys.append(self.primary_keys[nextInLine][x])
+        
+        orig_attributes = self.schemas[nextInLine]["attributes"]
+        #print(orig_attributes)
+        #Getting the types to match the attributes from original table
+        for x in range(len(self.schemas[nextInLine]["attributes"])):
+            types.append(self.schemas[nextInLine]["types"][x])
+            if(self.schemas[nextInLine]["attributes"][x] in orig_primary_keys): 
+                keys.append(x)
+        
+        #Setup primary keys as well
+        for x in range(len(keys)):
+            keys[x] = attributes[keys[x]]
+
+        #Setting values for our table
+
+        self.tables[new_name]  = {} 
+        self.schemas[new_name] = {} 
+
+        self.schemas[new_name]["attributes"] = attributes
+        self.schemas[new_name]["types"]      = types
+        self.primary_keys[new_name]          = keys
+        
+        for row in self.tables[nextInLine]:
+            dummy_line = [' ']*(5+len(attributes))
+            dummy_line[2] = new_name
+            i = 5
+            for attr in orig_attributes:
+                dummy_line[i] = self.tables[nextInLine][row][attr]
+                i = i+1
+
+            dummy_line[5] = "(\"" + dummy_line[5]
+            dummy_line[-1] = dummy_line[-1] + ");"
+            self.insert(dummy_line)
+
+        return new_name
 
     # Evaluates an atomic expression
     def evaluateAtomic(self, line):
@@ -616,16 +1136,16 @@ class Lexer(object):
             line = line.split(" ")
             return self.evaluateExpr(line)
         else:
-        	return line
+            return line
         
-	# Parses a relational query
+        # Parses a relational query
     def relational(self, line):
-    	# Get basic info from line
+        # Get basic info from line
         expr = line[6:]
         table = line[2]
 
         # Evaluate the relation
-        name = self.evaluateExpr(expr)	# Name of the temporary table that has the solution
+        name = self.evaluateExpr(expr)  # Name of the temporary table that has the solution
 
         # Copy table from temporary table by writing dummy insert requests
         for row in self.tables[name]:
@@ -633,14 +1153,13 @@ class Lexer(object):
             dummy_line[2] = table
             i = 5
             for attr in self.schemas[name]["attributes"]:
-            	dummy_line[i] = self.tables[name][row][attr]
-            	i += 1
+                dummy_line[i] = self.tables[name][row][attr]
+                i += 1
 
             dummy_line[5] = "(\"" + dummy_line[5]
             dummy_line[-1] = dummy_line[-1] + ");"
             self.insert(dummy_line)
-
-        return
+        return 
         
     # Directs parse commands to their correct function.
     def parse_command(self, line):
@@ -709,5 +1228,6 @@ def Main():
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
     lexicon = Lexer(os.path.join(__location__, 'test.txt'))
     
-Main() # Needed to make Main work.     
-    
+
+Main() # Needed to make Main work.    
+#=======
