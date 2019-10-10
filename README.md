@@ -17,3 +17,6 @@ Python implementation of IMDB from scratch.
 ## Rows (since you won't have the keys yourself) are iterable with:
 >for x in self.tables[tablename].keys():\
 >and you access each row with self.tables[tablename][x]
+
+## In order to test the code
+Simply run "python regex_lexicon.py" with both that file, and test.txt in the same directory as the command prompt.
