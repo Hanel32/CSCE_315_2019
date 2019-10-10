@@ -564,6 +564,9 @@ class Lexer(object):
         # This should contain only the commands to parse (parentheses included)
         commandsOriginal = selectBlock.copy()
 
+        print("commandsOriginal:")
+        print(commandsOriginal)
+
         # Find where the parentheses are
         i = 0
         indexesWithOpenParenthesisOriginal = []
@@ -902,10 +905,36 @@ class Lexer(object):
     # Select some subset of the table
     # This should only be called for a full line with only a select call, like
     # dogs <- select (kind == "dog") animals;
-    def select(self, line):
+    def select(self, lineToCheck):
         # make lists of the conditions we need to evaluate
         conditionListAnd = []
         conditionListOr = []
+
+        tableToInsertTo = ""
+
+        line = lineToCheck.copy()
+
+        if line[0][0] == '(' and line[-1][-1] == ';' : # is just the select block
+            line[0] = line[0][1:]
+            line[-1] = line[-1][:-1]
+            line[-1] = line[-1][:-1]
+
+
+        indexOfOpen = 0
+
+        for tokens in line:
+            if tokens[0] == '(':
+                indexOfOpen = line.index(tokens)
+
+        if line[-1][-1] == ')' : # atomic expression at end
+            tableToInsertTo = self.evaluateExpr(line[indexOfOpen:])
+        else:
+            tableToInsertTo = line[-1][:-1]
+
+        print("line:")
+        print(line)
+        print("tableToInsertTo:")
+        print(tableToInsertTo)
 
         # since we're making a new table, this makes sure it doesn't exist yet
         #if line[0].lower() in self.tables.keys():
@@ -915,7 +944,7 @@ class Lexer(object):
         # sets up the new table
         self.tables[line[0].lower()] = {}  
         # Passes to helper function to actually fill with correct elements
-        self.processSelectBlock(line[0].lower(), line[3:-1], line[-1][:-1]) # last split is to get rid of semicolon
+        self.processSelectBlock(line[0].lower(), line[3:-1], tableToInsertTo) # last split is to get rid of semicolon
 
         print("\n~~~~~~~~~~~~<" + line[0].lower() + ">~~~~~~~~~~~")
         table = self.tables[line[0].lower()]

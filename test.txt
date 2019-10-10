@@ -8,8 +8,6 @@ INSERT INTO animals VALUES FROM ("Joe", "bird", 2);
 
 SHOW animals;
 
-CREATE TABLE species (kind VARCHAR(8)) PRIMARY KEY (kind);
-
 INSERT INTO species VALUES FROM RELATION (project (kind) animals) - (project (kind) (select (kind == "dog") animals));
 SHOW species;
 
