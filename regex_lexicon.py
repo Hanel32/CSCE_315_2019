@@ -101,29 +101,19 @@ class Lexer(object):
             self.schemas[tmp_name]["types"] = type_lst
             self.primary_keys[tmp_name] = attr_lst
 
-            # Check if source is a table
-            if not atom in self.tables.keys():
-                print("ERROR! Source table does not exist")
-                return
+            # Make a dummy line for fake select request to call select funtion
+            dummy_line = [' ']*(4+len(attr_lst))
+            dummy_line[0] = tmp_name
+            dummy_line[1] = '<-'
+            dummy_line[2] = 'project'
+            for i in range(0,len(attr_lst)):
+                dummy_line[i+3] = attr_lst[i]
+            dummy_line[-1] = atom + ';'
+            dummy_line[3] = "(" + dummy_line[3]
+            dummy_line[2+len(attr_lst)] = dummy_line[2+len(attr_lst)] + ")"
 
-            # Make sure attributes match
-            for attr in attr_lst:
-                if not attr in self.schemas[atom]["attributes"]:
-                    print("ERROR! Attribute", attr, "does not exist")
-                    return
-            
-            # Write dummy insert request containing entry info to pass to insert
-            for row in self.tables[atom]:
-                dummy_line = [' ']*(5+len(attr_lst))
-                dummy_line[2] = tmp_name
-                i = 5
-                for attr in attr_lst:
-                    dummy_line[i] = self.tables[atom][row][attr]
-                    i = i+1
-
-                dummy_line[5] = "(\"" + dummy_line[5]
-                dummy_line[-1] = dummy_line[-1] + ");"
-                self.insert(dummy_line)
+            # Call select to fill up temp table to return
+            self.project(dummy_line)
 
             return tmp_name
         # Handle selections
@@ -187,37 +177,19 @@ class Lexer(object):
             atom = line[i:]
             atom = self.evaluateAtomic(atom)
 
-            # Check if source is a table
-            if atom not in self.tables.keys():
-                print("ERROR! Source table does not exist")
-                return
+            # Make a dummy line for fake select request to call select funtion
+            dummy_line = [' ']*(4+len(attr_lst))
+            dummy_line[0] = tmp_name
+            dummy_line[1] = '<-'
+            dummy_line[2] = 'rename'
+            for i in range(0,len(attr_lst)):
+                dummy_line[i+3] = attr_lst[i]
+            dummy_line[-1] = atom + ';'
+            dummy_line[3] = "(" + dummy_line[3]
+            dummy_line[2+len(attr_lst)] = dummy_line[2+len(attr_lst)] + ")"
 
-            self.schemas[tmp_name]["attributes"] = attr_lst
-            self.primary_keys[tmp_name] = attr_lst
-
-            if len(self.schemas[atom]["attributes"]) != len(self.schemas[tmp_name]["attributes"]):
-                print("ERROR! Number of attributes don't match")
-                return
-
-             # Get list of attribute types
-            type_lst = []
-            for atr, typ in zip(self.schemas[tmp_name]["attributes"], self.schemas[atom]["types"]):
-                if atr in attr_lst:
-                    type_lst.append(typ)
-            self.schemas[tmp_name]["types"] = type_lst
-
-            # Write dummy insert request containing entry info to pass to insert
-            for row in self.tables[atom]:
-                dummy_line = [' ']*(5+len(attr_lst))
-                dummy_line[2] = tmp_name
-                i = 5
-                for attr in self.schemas[atom]["attributes"]:
-                    dummy_line[i] = self.tables[atom][row][attr]
-                    i = i+1
-
-                dummy_line[5] = "(\"" + dummy_line[5]
-                dummy_line[-1] = dummy_line[-1] + ");"
-                self.insert(dummy_line)
+            # Call select to fill up temp table to return
+            self.rename(dummy_line)
 
             return tmp_name
         # Handle Relational Algebra
@@ -1212,19 +1184,9 @@ class Lexer(object):
         # Evaluate the relation
         name = self.evaluateExpr(expr)  # Name of the temporary table that has the solution
 
-        # Copy table from temporary table by writing dummy insert requests
-        for row in self.tables[name]:
-            dummy_line = [' ']*(5+len(self.schemas[name]["attributes"]))
-            dummy_line[2] = table
-            i = 5
-            for attr in self.schemas[name]["attributes"]:
-                dummy_line[i] = self.tables[name][row][attr]
-                i += 1
-
-            dummy_line[5] = "(\"" + dummy_line[5]
-            dummy_line[-1] = dummy_line[-1] + ");"
-            self.insert(dummy_line)
-        return 
+        self.tables[table] = self.tables[name]
+        self.schemas[table] = self.schemas[name]
+        self.primary_keys[table] = self.primary_keys[name]
         
     # Directs parse commands to their correct function.
     def parse_command(self, line):
@@ -1250,12 +1212,26 @@ class Lexer(object):
         
     # Directs query commands to their correct function.
     def parse_query(self, line):
-        if line[2].lower() == "select" : 
-            self.select(line)     
-        if line[2].lower() == "project": 
-            self.project(line)       
-        if line[2].lower() == "rename" : 
-            self.rename(line)      
+        if line[1] == "<-" : 
+            expr = line[2:]
+            table = line[0]
+
+            # Evaluate the relation
+            name = self.evaluateExpr(expr)  # Name of the temporary table that has the solution
+
+            self.tables[table] = self.tables[name]
+            self.schemas[table] = self.schemas[name]
+            self.primary_keys[table] = self.primary_keys[name]    
+
+            # Clean up temporary tables
+            entries = []
+            for entry in self.tables.keys():
+                if "tmp" in entry:
+                    entries.append(entry)
+            for entry in entries:
+                del self.tables[entry]
+                del self.schemas[entry]
+                del self.primary_keys[entry]
     
     # Constructor for the class, and where to put class variables.
     def __init__(self, filename):

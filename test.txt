@@ -10,7 +10,7 @@ SHOW animals;
 
 CREATE TABLE species (kind VARCHAR(8)) PRIMARY KEY (kind);
 
-INSERT INTO species VALUES FROM RELATION (project (kind) animals) - (project (kind) (select (kind == "dog") animals));
+INSERT INTO species VALUES FROM RELATION ((project (name) animals) * ((rename (animal) ((project (kind) animals) - (project (kind) (select (kind == "dog") animals)))) * (project (years) animals))) + (rename (name, animal, years) animals);
 SHOW species;
 
 a <- rename (aname, akind) (project (name, kind) animals);
@@ -25,7 +25,7 @@ dogs <- select (kind == "dog") animals;
 
 SHOW dogs;
 
-old_dogs <- select (years > 10) dogs;
+old_dogs <- select (years >= 10) dogs;
 
 SHOW old_dogs;
 
