@@ -10,17 +10,11 @@ SHOW animals;
 
 CREATE TABLE species (kind VARCHAR(8)) PRIMARY KEY (kind);
 
-INSERT INTO species VALUES FROM RELATION rename (animal) ((project (kind) animals) - (project (kind) (select (kind == "dog") animals)));
+INSERT INTO species VALUES FROM RELATION ((project (name) animals) * ((rename (animal) ((project (kind) animals) - (project (kind) (select (kind == "dog") animals)))) * (project (years) animals))) + (rename (name, animal, years) animals);
 SHOW species;
 
 a <- rename (aname, akind) (project (name, kind) animals);
 SHOW a;
-
-c <- a * animals;
-SHOW c;
-
-d <- select (aname == name && akind != kind) c;
-SHOW d;
 
 common_names <- project (name) (select (aname == name && akind != kind) (a * animals));
 answer <- common_names;
