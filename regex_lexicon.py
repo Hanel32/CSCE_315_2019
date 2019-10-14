@@ -1267,7 +1267,7 @@ def Main():
     # Opens the file "test.txt" from the current working directory.
     __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    lexicon = Lexer(os.path.join(__location__, 'test.txt'))
+    lexicon = Lexer(os.path.join(__location__, 'test5.txt'))
     
 
 Main() # Needed to make Main work.    

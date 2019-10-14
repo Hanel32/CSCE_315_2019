@@ -1,3 +1,6 @@
+import regex_lexicon as engine
+import JSON_Parser as DB
+
 class Queries:
 
     def BaconNumber(self, actorA, actorB) : # These are the actor's names as strings
@@ -50,6 +53,7 @@ class Queries:
         genreCounts = []
 
         # Get actor's data from DB
+        actorData = DB.run_cmd("temp <- select (name == " + actor + ") actors")
 
         # for movie in actor's movies :
 
