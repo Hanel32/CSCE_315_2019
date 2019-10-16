@@ -100,8 +100,24 @@ class Queries:
         return retString
 
         # return maxGenre/output results to GUI
+   
+    def BestWorstDays(self, actorName) :
+        # Get actor's data from DB
+        actorData = DB.run_cmd("temp <- select (name == " + actorName + ") actors;")
+        DB.run_cmd("DELETE temp;")
 
+        # Obtains the actor's best ranked movie
+        bestMovie = actorData["best_movie"]
+
+        # Obtains the data for that movie
+        movieData = DB.run_cmd("temp <- select (id == " + bestMovie + ") movies;")
+        DB.run_cmd("DELETE temp;")
+
+        # Obtains the worst ranked movie of the same director as that movie
+        worstMovie = movieData["directors_worst"]
+
+        return worstMovie
+    
     def __init__(self) :
         self.DB = JSON_Parser.DB()
         self.engine = regex_lexicon.Lexer()
-
