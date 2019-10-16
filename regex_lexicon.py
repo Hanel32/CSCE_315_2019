@@ -983,7 +983,7 @@ class Lexer(object):
         # Passes to helper function to actually fill with correct elements
         self.processSelectBlock(line[0].lower(), line[3:-1], tableToInsertTo) # last split is to get rid of semicolon
 
-        return self.tables[line[0].lower()]
+        #return self.tables[line[0].lower()]
 
         # print("\n~~~~~~~~~~~~<" + line[0].lower() + ">~~~~~~~~~~~")
         # table = self.tables[line[0].lower()]
@@ -1217,8 +1217,10 @@ class Lexer(object):
         if line[1] == "<-" : 
             expr = line[2:]
             table = line[0]
-
-            # Evaluate the relation
+        # else :
+        #     expr = line
+        #     table = 
+        # Evaluate the relation
             name = self.evaluateExpr(expr)  # Name of the temporary table that has the solution
 
             self.tables[table] = self.tables[name]
@@ -1234,6 +1236,8 @@ class Lexer(object):
                 del self.tables[entry]
                 del self.schemas[entry]
                 del self.primary_keys[entry]
+
+            return self.tables[table]
     
     # Constructor for the class, and where to put class variables.
     def __init__(self, filename):

@@ -3,6 +3,10 @@ import JSON_Parser as DB
 
 class Queries:
 
+    def StringToList(self, string) :
+        listFromString = string.split(', ')
+        return listFromString
+
     def BaconNumber(self, actorA, actorB) : # These are the actor's names as strings
 
         class StepToActorB :
@@ -49,31 +53,34 @@ class Queries:
                 self.genreName = genreName
                 self.genreCount = genreCount
 
-            def toString() :
-                return genreName + " " + str(genreCount)
-
         # Make an empty list of these objects
         genreCounts = []
 
         # Get actor's data from DB
-        actorData = DB.run_cmd("temp <- select (name == " + actor + ") actors")
-        DB.run_cmd("DELETE temp")
+        actorData = self.DB.run_cmd("temp <- select (name == " + actor + ") actors;")
+
+        movieList = self.StringToList(actorData["movies"])
+
+        DB.run_cmd("DELETE temp;")
 
         # Iterate through all the movies (by ID) the actor has stared in
-        for movie in actorData["movies"] :
+        for movie in movieList :
 
             # Get the movie's data from DB
-            movieData = DB.run_cmd("temp <- select (id == " + movie + ") movies")
-            DB.run_cmd("DELETE temp")
+            movieData = self.DB.run_cmd("temp <- select (id == " + movie + ") movies;")
+
+            genreList = self.StringToList(movieData["genres"])
+
+            DB.run_cmd("DELETE temp;")
 
             # Used to make new genre objects when appropriate
-            genresToCheck = movieData[genres]
+            genresToCheck = genreList
 
             # Iterate through all the genres from an actor's movies
             for genre in genreCounts :
                 # Check the current genre against all the genres for this movie
-                for movieGenre in movieData[genres] :
-                    if genre == movieGenre :
+                for movieGenre in genreList :
+                    if movieGenre == genre :
                         genre.genreCount += 1
                         # Get rid of this element, as we have already checked it
                         genresToCheck.remove(movieGenre)
@@ -93,13 +100,11 @@ class Queries:
                 maxGenre = item
 
         retString = actor + " has starred in more " + maxGenre.genreName + " movies than \
-            any other genre, having appeared in " + maxGenre.genreCount + " of these movies"
+            any other genre, having appeared in " + maxGenre.genreCount + " of these movies."
 
         print(retString)
 
         return retString
-
-        # return maxGenre/output results to GUI
 
     def __init__(self) :
         self.DB = JSON_Parser.DB()
