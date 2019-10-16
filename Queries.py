@@ -49,26 +49,41 @@ class Queries:
                 self.genreName = genreName
                 self.genreCount = genreCount
 
+            def toString() :
+                return genreName + " " + str(genreCount)
+
         # Make an empty list of these objects
         genreCounts = []
 
         # Get actor's data from DB
         actorData = DB.run_cmd("temp <- select (name == " + actor + ") actors")
+        DB.run_cmd("DELETE temp")
 
-        # for movie in actor's movies :
+        # Iterate through all the movies (by ID) the actor has stared in
+        for movie in actorData["movies"] :
 
-            genreExistsInList = False
+            # Get the movie's data from DB
+            movieData = DB.run_cmd("temp <- select (id == " + movie + ") movies")
+            DB.run_cmd("DELETE temp")
 
+            # Used to make new genre objects when appropriate
+            genresToCheck = movieData[genres]
+
+            # Iterate through all the genres from an actor's movies
             for genre in genreCounts :
-                # if movie's genre == object's genre :
-                    genre.genreCount += 1
-                    genreExistsInList = True
-                    break
+                # Check the current genre against all the genres for this movie
+                for movieGenre in movieData[genres] :
+                    if genre == movieGenre :
+                        genre.genreCount += 1
+                        # Get rid of this element, as we have already checked it
+                        genresToCheck.remove(movieGenre)
 
-            if not genreExistsInList :
-                # newGenre = GenreAndCount(movie's genre, 1)
-                # genreCounts.append(newGenre)
+            # Will only operate on any genres tha movie had that weren't already in the list
+            for genre in genresToCheck :
+                newGenre = GenreAndCount(genre, 1)
+                genreCounts.append(newGenre)
 
+        # Find the genre with the highest amount
         maxCountOfGenre = 0
         maxGenre = genreCounts[0]
 
@@ -77,7 +92,16 @@ class Queries:
                 maxCountOfGenre = item.genreCount
                 maxGenre = item
 
+        retString = actor + " has starred in more " + maxGenre.genreName + " movies than \
+            any other genre, having appeared in " + maxGenre.genreCount + " of these movies"
+
+        print(retString)
+
+        return retString
+
         # return maxGenre/output results to GUI
 
-        
+    def __init__(self) :
+        self.DB = JSON_Parser.DB()
+        self.engine = regex_lexicon.Lexer()
 
