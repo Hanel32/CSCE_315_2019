@@ -7,7 +7,13 @@ class Queries:
         listFromString = string.split(', ')
         return listFromString
 
-    def BaconNumber(self, actorA, actorB) : # These are the actor's names as strings
+    def BaconNumber(self, actorAOrig, actorBOrig) : # These are the actor's names as strings
+
+        actorA = actorAOrig.lower()
+        actorB = actorBOrig.lower()
+
+        if actorA == "" or actorB == "" :
+            return ""
 
         class StepToActorB :
             def __init__(self, number, name, movie):
@@ -22,30 +28,74 @@ class Queries:
         pathToActorB = []
 
         # Get actorA's data from the DB
+        actorAData = self.DB.run_cmd("temp <- select (name == " + actorA + ") actors;")
+        movieListA = self.StringToList(actorAData["movies"])
+        DB.run_cmd("DELETE temp;")
 
-        # Make empty list of actor ID's
+        # Make empty list of actor IDs
         actorIDs = []
 
-        # for movie in actorA's movies :
-            # for actor in movie :
+        for movie in movieListA :
+
+            movieData = self.DB.run_cmd("temp <- select (id == " + movie + ") movies;")
+            actorList = self.StringToList(movieData["actors"])
+            DB.run_cmd("DELETE temp;")
+
+            for actor in actorList :
+
+                actorData = self.DB.run_cmd("temp <- select (id == " + actor + ") actors;")
+                actorName = actorData["name"].lower()
+                DB.run_cmd("DELETE temp;")
+
                 # add actor's ID to list (skip duplicates)
-                # if not actor in actorIDs :
-                    # actorIDs.append(actor)
-                # if actor's name == actorB :
+                if not actor in actorIDs :
+                    actorIDs.append(actor)
+                if actorName == actorB :
                     # add Bacon Number, actor's name, movie to the list at start
-                    # return said list
-        
-        # Bacon Number++
+                    newStep = StepToActorB(baconNumber, actorName, movie)
+                    pathToActorB.append(newStep)
+                    return pathToActorB
+    
+        baconNumber += 1
+
         # Make empty list of returns from the following for loop
+        baconReturns = []
         
-        # for actor ID in list :
+        for actor in actorIDs :
+            otherActorData = self.DB.run_cmd("temp <- select (id == " + actor + ") actors;")
+            otherActorName = otherActorData["name"].lower()
+            DB.run_cmd("DELETE temp;")
+
             # add BaconNumber(actor name, actorB) to list
+            baconReturns.append(self.BaconNumber(actorAOrig, otherActorName))
+
+        lowestNumber = baconReturns[0][-1].number
+        listToAdd = baconReturns[0]
 
         # Combine the list with the lowest highest Bacon number from above to the list at the start
+        for item in baconReturns :
+            if item[-1].number < lowestNumber :
+                lowestNumber = item[-1].number
+                listToAdd = item
+        
+        pathToActorB = pathToActorB + listToAdd
+
+        returnString = "Bacon Number: " + pathToActorB[-1].number '\n' + "Path:\n" + actorAOrig + '\n'
+
+        for item in pathToActorB :
+            returnString = returnString + item.movie + '\n' + item.name + '\n'
+
+        print(returnString)
 
         # return this list/display it to GUI
+        return returnString
 
-    def Typecasting(self, actor) :
+    def Typecasting(self, actorToUse) :
+
+        actor = actorToUse.lower()
+
+        if actor == "" :
+            return ""
 
         # Make an object that holds a genre and an int representing number of movies in said genre for the actor
         class GenreAndCount :
@@ -99,7 +149,7 @@ class Queries:
                 maxCountOfGenre = item.genreCount
                 maxGenre = item
 
-        retString = actor + " has starred in more " + maxGenre.genreName + " movies than \
+        retString = actorToUse + " has starred in more " + maxGenre.genreName + " movies than \
             any other genre, having appeared in " + maxGenre.genreCount + " of these movies."
 
         print(retString)
