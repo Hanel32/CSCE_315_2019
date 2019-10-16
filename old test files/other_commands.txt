@@ -1,0 +1,3 @@
+joes <- select (name == "Joe" && (kind == "cat" || kind == "bird")) animals;
+not_joe_and_young_dogs <- select (name != "Joe" && (years < 10 && kind == dog)) animals;
+old_dogs_and_all_birds <- select (kind == "dog" && years >= 10 || kind == "bird") animals;

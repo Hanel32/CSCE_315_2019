@@ -1,0 +1,6 @@
+id (name kind),name VARCHAR(20),kind VARCHAR(8),years INTEGER
+736,Spot,dog,10
+962,Snoopy,dog,3
+1059,Tweety,bird,1
+598,Joe,cat,4
+703,Joe,bird,2
