@@ -983,6 +983,8 @@ class Lexer(object):
         # Passes to helper function to actually fill with correct elements
         self.processSelectBlock(line[0].lower(), line[3:-1], tableToInsertTo) # last split is to get rid of semicolon
 
+        return self.tables[line[0].lower()]
+
         # print("\n~~~~~~~~~~~~<" + line[0].lower() + ">~~~~~~~~~~~")
         # table = self.tables[line[0].lower()]
         # for key in table:
@@ -1267,7 +1269,7 @@ def Main():
     # Opens the file "test.txt" from the current working directory.
     __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
-    lexicon = Lexer(os.path.join(__location__, 'test5.txt'))
+    #lexicon = Lexer(os.path.join(__location__, 'test5.txt'))
     
 
 Main() # Needed to make Main work.    
