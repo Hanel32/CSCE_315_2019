@@ -155,6 +155,51 @@ class Queries:
         print(retString)
 
         return retString
+    
+    def CoverRoles(self, characterName):
+        characterData = DB.run_cmd("temp <- select (characters == " + characterName + ") characters;")
+        DB.run_cmd("DELETE temp;")
+
+        CoverRoleActors = characterData["actors_played"];
+
+        retString = "The following actors have played " + characterName + " :\n"
+
+        # Adds all actor names to retString
+        for actor in CoverRoleActors
+            retString = retString + actor + ", "
+
+        # Remove last comma if one was added
+        if len(CoverRoleActors) != 0:
+            retString = retString[:-2]
+
+        print(retString)
+
+        return retString
+
+    def BestWorstDays(self, actorName) :
+        # Get actor's data from DB
+        actorData = DB.run_cmd("temp <- select (name == " + actorName + ") actors;")
+        DB.run_cmd("DELETE temp;")
+
+        # Obtains the actor's best ranked movie
+        bestMovie = actorData["best_movie"]
+
+        # Obtains the data for that movie
+        movieData = DB.run_cmd("temp <- select (id == " + bestMovie + ") movies;")
+        DB.run_cmd("DELETE temp;")
+
+        # Obtains the worst ranked movie of the same director as that movie
+        worstMovie = movieData["directors_worst"]
+
+        # Creates retString to display results to user
+        retString = "The highest rated movie " + actorName + " has appeared in is " + bestMovie + ".\n" \
+                  + "The lowest rated movie directed by " + bestMovie["name"] + "'s director is " + worstMovie
+
+        print(retString)
+
+        return retString
+
+        return worstMovie
 
     def __init__(self) :
         self.DB = JSON_Parser.DB()
