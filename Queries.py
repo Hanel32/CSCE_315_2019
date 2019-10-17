@@ -205,54 +205,43 @@ class Queries:
         return worstMovie
 
     def constellation(self, actor, num):
-        costar_list = {}
+        costar_constellation = {}
         num = int(num)
 
         # Get actor info and movie list
         actor_info = self.DB.run_cmd("temp <- select (name == " + actor + ") actors;")
+        name = " "
         for a in actor_info:
             movies = self.StringToList(actor_info[a]["movies"])
-            actor = actor_info[a]["id"]
             name = a
-        self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
+        if name != " ":
+        	self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
 
-        # Find actor list for each movie and add to list
-        for movie in movies:
-            # Get actor list
-            movie = self.DB.run_cmd("temp <- select (id == " + movie + ") movies;")
-            for m in movie:
-                actors = self.StringToList(movie[m]["actors"])
-                name = m
-            self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
+        # Get actor (id, name, movies) table
+        costar_info = self.DB.run_cmd("temp <- project (id, name, movies) actors;")
+        ids = []
+        for costar in costar_info:
+        	costar = costar_info[costar]
+        	ids.append(costar["id"])
+        	for movie in movies:
+        		if movie in costar["movies"]:
+        			if costar["name"] in costar_constellation:
+        				costar_constellation[costar["name"]] = costar_constellation[costar["name"]] + 1
+        			else:
+        				costar_constellation[costar["name"]] = 1
 
-            # Add each actor to costar dictionary and update number of appearances
-            for a in actors:
-                # Only add if a is not input actor
-                if a != actor:
-                    # If actor is already in list, increment appearances
-                    if a in costar_list:
-                        costar_list[a] = costar_list[a] + 1
-                    # Add actor to list
-                    else:
-                        costar_list[a] = 1
+        # Search through costar table and select those with num appearances
+        matches = []
+        for costar, appearances in costar_constellation.items():
+        	if (appearances == num) & (costar != actor):
+        		matches.append(costar)
 
-        # Look through costar_list and return costars with num of appearances
-        costar_constellation = []
-        for costar,appearances in costar_list.items():
-            if appearances == num:
-                costar_constellation.append(costar)
+        print(matches)
 
-        # Get names from ID numbers
-        for i in range(len(costar_constellation)):
-            star = self.DB.run_cmd("temp <- select (id == " + costar_constellation[i] + ") actors;")
-            for s in star:
-                costar_constellation[i] = star[s]["name"]
-                name = s
-            self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
+        # Delete temp
+        self.DB.run_cmd("DELETE temp;")
 
-        print(costar_constellation)
-
-        return costar_constellation
+        return matches
 
     def __init__(self) :
         self.DB = JSON_Parser.DB()
