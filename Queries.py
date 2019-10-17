@@ -208,17 +208,38 @@ class Queries:
 
         return worstMovie
 
-    def constellation(self, actor, num):
-        costar_list = {}
+    def constellation(self, actor, num=1):
+        costar_constellation = {}
         num = int(num)
+        actor = actor.replace(" ", "_")
 
         # Get actor info and movie list
         actor_info = self.DB.run_cmd("temp <- select (name == " + actor + ") actors;")
         for a in actor_info:
             movies = self.StringToList(actor_info[a]["movies"])
-            actor = actor_info[a]["id"]
-            name = a
-        self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
+        self.DB.run_cmd("DELETE temp;")
+
+        # Get actor (id, name, movies) table
+        costar_info = self.DB.run_cmd("temp <- project (id, name, movies) actors;")
+
+        # Fill costar_constellation dict with costar_constellation[costar] = numMoviesTogether
+        for costar in costar_info:
+        	costar = costar_info[costar]
+        	costar_constellation[costar["name"]] = 0
+
+            # Check for each movie and increment entry if a match
+        	for movie in movies:
+        		if movie in costar["movies"]:
+        			costar_constellation[costar["name"]] = costar_constellation[costar["name"]] + 1
+
+        # Search through costar table and select those with num appearances
+        matches = []
+        for costar, appearances in costar_constellation.items():
+        	if (appearances == num) & (costar != actor):
+        		matches.append(costar)
+
+        # Delete temp
+        self.DB.run_cmd("DELETE temp;")
 
         # Find actor list for each movie and add to list
         for movie in movies:
