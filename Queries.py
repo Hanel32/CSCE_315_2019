@@ -1,94 +1,100 @@
 import regex_lexicon
 import JSON_Parser
+import random
+import string
 
 class Queries:
+
+    class StepToActorB :
+        def __init__(self, number, name, movie):
+            self.number = number
+            self.name = name
+            self.movie = movie
+
+    def randomString(self, stringLength=10):
+        letters = string.ascii_lowercase
+        return ''.join(random.choice(letters) for i in range(stringLength))
 
     def StringToList(self, string) :
         listFromString = string.split('|')
         return listFromString
 
-    def BaconNumber(self, actorAOrig, actorBOrig) : # These are the actor's names as strings
+    # Actually performs the Bacon Number calculation
+    def BaconNumberRecursive(self, actorB, actorsTable, moviesTable, movieList, baconNumber) :
 
-        actorA = actorAOrig.lower()
-        actorB = actorBOrig.lower()
-
-        if actorA == "" or actorB == "" :
-            return ""
-
-        class StepToActorB :
-            def __init__(self, number, name, movie):
-                self.number = number
-                self.name = name
-                self.movie = movie
-
-        # Initialize Bacon Number at 1
-        baconNumber = 1
+        baconNumber += 1
+        print("bacon number: " + str(baconNumber))
 
         # Make empty list of some data structure that holds the bacon number, an actor name, and a movie
         pathToActorB = []
-
-        # Get actorA's data from the DB
-        actorAData = self.DB.run_cmd("temp <- select (name == " + actorA + ") actors;")
-        movieListA = self.StringToList(actorAData["movies"])
-        DB.run_cmd("DELETE temp;")
-
         # Make empty list of actor IDs
         actorIDs = []
 
-        for movie in movieListA :
-
-            movieData = self.DB.run_cmd("temp <- select (id == " + movie + ") movies;")
-            actorList = self.StringToList(movieData["actors"])
-            DB.run_cmd("DELETE temp;")
-
+        for movie in movieList :
+            actorList = self.StringToList(moviesTable[movie]['actors'])
             for actor in actorList :
-
-                actorData = self.DB.run_cmd("temp <- select (id == " + actor + ") actors;")
-                actorName = actorData["name"].lower()
-                DB.run_cmd("DELETE temp;")
-
+                actorName = actorsTable[actor]['name'].replace(" ", "_")
+                #print(actorName)
                 # add actor's ID to list (skip duplicates)
                 if not actor in actorIDs :
                     actorIDs.append(actor)
                 if actorName == actorB :
                     # add Bacon Number, actor's name, movie to the list at start
-                    newStep = StepToActorB(baconNumber, actorName, movie)
+                    newStep = self.StepToActorB(baconNumber, actorName, moviesTable[movie]['title'])
                     pathToActorB.append(newStep)
                     return pathToActorB
-    
-        baconNumber += 1
 
-        # Make empty list of returns from the following for loop
-        baconReturns = []
+        newMovieList = []
+
+        for actorId in actorIDs :
+            newMovieList += self.StringToList(actorsTable[actorId]['movies'])
+
+        # removes duplicate movies
+        newMovieList = list(dict.fromkeys(newMovieList))
+
+        pathToActorB += self.BaconNumberRecursive(actorB, actorsTable, moviesTable, newMovieList, baconNumber)
+        return pathToActorB
+
+    # Calls the actual worker function, and interprets the output into a string
+    def BaconNumber(self, actorAOrig, actorBOrig) : # These are the actor's names as strings
+
+        print("Bacon Number called")
+
+        actorA = actorAOrig.replace(" ", "_")
+        actorB = actorBOrig.replace(" ", "_")
+
+        if actorA == "" or actorB == "" :
+            return ""
+
+        # Get reference to the different tables I need
+        newTblName = self.randomString()
+        actorsTable = self.DB.run_cmd(newTblName + " <- project (id, name, movies) actors;")
+
+        newTblName1 = self.randomString()
+        moviesTable = self.DB.run_cmd(newTblName1 + " <- project (id, title, actors) movies;")
+
+        # Get actorA's movie list
+        newTblName = self.randomString()
+        actorAData = self.DB.run_cmd(newTblName + " <- select (name == \"" + actorA + "\") actors;")
+        actorAID = " "
+        for key in actorAData :
+            movieListA = self.StringToList(actorAData[key]['movies'])
+            actorAID = key
+
+        baconPath = self.BaconNumberRecursive(actorB, actorsTable, moviesTable, self.StringToList(actorsTable[actorAID]['movies']), 0)
+
+        retString = "Bacon Number: " + str(baconPath[-1].number) + '\n' + "Path: " + actorAOrig + " -> "
+
+        # index = 0
+        # while index < len(baconPath) - 1 :
+        for item in baconPath :
+            retString += item.movie.replace("_", " ") + " -> " + item.name.replace("_", " ")
+            # index += 1
+        # TODO actually format this output and return it as a string (replace "_" with " " as well)
+
+        return retString
+
         
-        for actor in actorIDs :
-            otherActorData = self.DB.run_cmd("temp <- select (id == " + actor + ") actors;")
-            otherActorName = otherActorData["name"].lower()
-            DB.run_cmd("DELETE temp;")
-
-            # add BaconNumber(actor name, actorB) to list
-            baconReturns.append(self.BaconNumber(actorAOrig, otherActorName))
-
-        lowestNumber = baconReturns[0][-1].number
-        listToAdd = baconReturns[0]
-
-        # Combine the list with the lowest highest Bacon number from above to the list at the start
-        for item in baconReturns :
-            if item[-1].number < lowestNumber :
-                lowestNumber = item[-1].number
-                listToAdd = item
-        
-        pathToActorB = pathToActorB + listToAdd
-
-        returnString = "Bacon Number: " + pathToActorB[-1].number + '\n' + "Path:\n" + actorAOrig + '\n'
-
-        for item in pathToActorB :
-            returnString = returnString + item.movie + '\n' + item.name + '\n'
-
-        print(returnString)
-
-        # return this list/display it to GUI
-        return returnString
 
     def Typecasting(self, actorToUse) :
 
@@ -107,7 +113,8 @@ class Queries:
         genreCounts = []
 
         # Get actor's data from DB
-        actorData = self.DB.run_cmd("temp <- select (name == " + actor + ") actors;")
+        #print("temp <- select (name == \"" + actor + "\") actors;")
+        actorData = self.DB.run_cmd("temp <- select (name == \"" + actor + "\") actors;")
 
         movieList = self.StringToList(actorData["movies"])
 
@@ -152,7 +159,7 @@ class Queries:
         retString = actorToUse + " has starred in more " + maxGenre.genreName + " movies than \
             any other genre, having appeared in " + maxGenre.genreCount + " of these movies."
 
-        print(retString)
+        #print(retString)
 
         return retString
     
@@ -163,7 +170,7 @@ class Queries:
             name = char
         self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
 
-        CoverRoleActors = charData["actors_played"];
+        CoverRoleActors = charData["actors_played"]
 
         retString = "The following actors have played " + characterName + " :\n"
 
@@ -175,7 +182,7 @@ class Queries:
         if len(CoverRoleActors) != 0:
             retString = retString[:-2]
 
-        print(retString)
+        #print(retString)
 
         return retString
 
@@ -198,7 +205,7 @@ class Queries:
         retString = "The highest rated movie " + actorName + " has appeared in is " + bestMovie + ".\n" \
                   + "The lowest rated movie directed by " + bestMovie["name"] + "'s director is " + worstMovie
 
-        print(retString)
+        #print(retString)
 
         return retString
 
@@ -250,7 +257,7 @@ class Queries:
                 name = s
             self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
 
-        print(costar_constellation)
+        #print(costar_constellation)
 
         return costar_constellation
 
@@ -258,3 +265,11 @@ class Queries:
         self.DB = JSON_Parser.DB()
         self.engine = regex_lexicon.Lexer()
 
+
+def Main() :
+    queries = Queries()
+    print(queries.BaconNumber("Uwe Boll", "Christopher Lee"))
+    print(queries.BaconNumber("Kevin Bacon", "John Cena"))
+    print("Bacon Number done")
+
+Main()

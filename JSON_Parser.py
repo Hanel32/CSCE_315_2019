@@ -198,7 +198,9 @@ class DB(object):
         #self.sql_injection(characters, chars_vars, 'characters') 
         
         # Check actors
-        self.run_cmd("SHOW actors;")
+        #self.run_cmd("SHOW actors;")
+        #self.run_cmd("WRITE actors;")
+        #self.run_cmd("WRITE movies;")
             
 if __name__ == '__main__':
     DB()
