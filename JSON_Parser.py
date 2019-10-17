@@ -82,10 +82,10 @@ class DB(object):
         self.engine   = engine.Lexer()
         
         # Parse through the movies, and turn the list into a dictionary
-        movies        = self.build_dictionary(self.fetch_json('movie_data\movies.json'))
+        movies        = self.build_dictionary(self.fetch_json('movie_data/movies.json'))
         
         # Parse through the cast, and turn the list into, again, a dictionary'
-        cast          = self.build_dictionary(self.fetch_json('movie_data\credits.json'))
+        cast          = self.build_dictionary(self.fetch_json('movie_data/credits.json'))
         
         # Create ACTORS/MOVIES/CHARACTERS tables commands
         actor = "CREATE TABLE actors (id INTEGER, name VARCHAR(80), movies VARCHAR(10000), characters VARCHAR(10000), best_movie INTEGER) PRIMARY KEY (id);"
@@ -200,8 +200,8 @@ class DB(object):
         # Check actors
         self.run_cmd("SHOW actors;")
             
-        
-DB()
+if __name__ == '__main__':
+    DB()
         
         
         

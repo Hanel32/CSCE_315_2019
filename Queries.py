@@ -1,10 +1,10 @@
-import regex_lexicon as engine
-import JSON_Parser as DB
+import regex_lexicon
+import JSON_Parser
 
 class Queries:
 
     def StringToList(self, string) :
-        listFromString = string.split(', ')
+        listFromString = string.split('|')
         return listFromString
 
     def BaconNumber(self, actorAOrig, actorBOrig) : # These are the actor's names as strings
@@ -80,7 +80,7 @@ class Queries:
         
         pathToActorB = pathToActorB + listToAdd
 
-        returnString = "Bacon Number: " + pathToActorB[-1].number '\n' + "Path:\n" + actorAOrig + '\n'
+        returnString = "Bacon Number: " + pathToActorB[-1].number + '\n' + "Path:\n" + actorAOrig + '\n'
 
         for item in pathToActorB :
             returnString = returnString + item.movie + '\n' + item.name + '\n'
@@ -157,15 +157,18 @@ class Queries:
         return retString
     
     def CoverRoles(self, characterName):
-        characterData = DB.run_cmd("temp <- select (characters == " + characterName + ") characters;")
-        DB.run_cmd("DELETE temp;")
+        characterData = self.DB.run_cmd("temp <- select (name == " + characterName + ") characters;")
+        for char in characterData:
+            charData = characterData[char]
+            name = char
+        self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
 
-        CoverRoleActors = characterData["actors_played"];
+        CoverRoleActors = charData["actors_played"];
 
         retString = "The following actors have played " + characterName + " :\n"
 
         # Adds all actor names to retString
-        for actor in CoverRoleActors
+        for actor in CoverRoleActors:
             retString = retString + actor + ", "
 
         # Remove last comma if one was added
@@ -178,15 +181,15 @@ class Queries:
 
     def BestWorstDays(self, actorName) :
         # Get actor's data from DB
-        actorData = DB.run_cmd("temp <- select (name == " + actorName + ") actors;")
-        DB.run_cmd("DELETE temp;")
+        actorData = self.DB.run_cmd("temp <- select (name == " + actorName + ") actors;")
+        self.DB.run_cmd("DELETE temp;")
 
         # Obtains the actor's best ranked movie
         bestMovie = actorData["best_movie"]
 
         # Obtains the data for that movie
-        movieData = DB.run_cmd("temp <- select (id == " + bestMovie + ") movies;")
-        DB.run_cmd("DELETE temp;")
+        movieData = self.DB.run_cmd("temp <- select (id == " + bestMovie + ") movies;")
+        self.DB.run_cmd("DELETE temp;")
 
         # Obtains the worst ranked movie of the same director as that movie
         worstMovie = movieData["directors_worst"]
@@ -206,31 +209,48 @@ class Queries:
         num = int(num)
 
         # Get actor info and movie list
-        actor = self.DB.run_cmd("tmp <- select (name == " + actor + ") actors;")
-        movies = self.StringToList(actor["movies"])
-        DB.run_cmd("DELETE tmp;")
+        actor_info = self.DB.run_cmd("temp <- select (name == " + actor + ") actors;")
+        for a in actor_info:
+            movies = self.StringToList(actor_info[a]["movies"])
+            actor = actor_info[a]["id"]
+            name = a
+        self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
 
         # Find actor list for each movie and add to list
         for movie in movies:
             # Get actor list
-            movie = self.DB.run_cmd("tmp <- select (title == " + movie + ") movies;")
-            actors = self.StringToList(movie["actors"])
-            DB.run_cmd("DELETE tmp;")
+            movie = self.DB.run_cmd("temp <- select (id == " + movie + ") movies;")
+            for m in movie:
+                actors = self.StringToList(movie[m]["actors"])
+                name = m
+            self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
 
             # Add each actor to costar dictionary and update number of appearances
             for a in actors:
-                # If actor is already in list, increment appearances
-                if a in costar_list:
-                    costar_list[a] = costar_list[a] + 1
-                # Add actor to list
-                else:
-                    costar_list[a] = 1
+                # Only add if a is not input actor
+                if a != actor:
+                    # If actor is already in list, increment appearances
+                    if a in costar_list:
+                        costar_list[a] = costar_list[a] + 1
+                    # Add actor to list
+                    else:
+                        costar_list[a] = 1
 
         # Look through costar_list and return costars with num of appearances
         costar_constellation = []
         for costar,appearances in costar_list.items():
             if appearances == num:
                 costar_constellation.append(costar)
+
+        # Get names from ID numbers
+        for i in range(len(costar_constellation)):
+            star = self.DB.run_cmd("temp <- select (id == " + costar_constellation[i] + ") actors;")
+            for s in star:
+                costar_constellation[i] = star[s]["name"]
+                name = s
+            self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
+
+        print(costar_constellation)
 
         return costar_constellation
 
