@@ -71,6 +71,9 @@ class Lexer(object):
         self.schemas[tmp_name] = {}
         self.primary_keys[tmp_name] = {}
 
+        for key in tables.keys():
+            print(key)
+
         # Handle projections
         if expr == "project":
             # Get attribute list

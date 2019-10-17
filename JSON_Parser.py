@@ -57,10 +57,10 @@ class DB(object):
         self.engine   = engine.Lexer()
         
         # Parse through the movies, and turn the list into a dictionary
-        movies        = self.build_dictionary(self.fetch_json('movie_data\movies.json'))
+        movies        = self.build_dictionary(self.fetch_json('movie_data/movies.json'))
         
         # Parse through the cast, and turn the list into, again, a dictionary'
-        cast          = self.build_dictionary(self.fetch_json('movie_data\credits.json'))
+        cast          = self.build_dictionary(self.fetch_json('movie_data/credits.json'))
         
         # Extract schema name and variables from movies
         packed_schema = self.parse_schema(movies[891])
