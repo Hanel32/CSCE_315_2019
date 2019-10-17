@@ -236,12 +236,10 @@ class Queries:
         	if (appearances == num) & (costar != actor):
         		matches.append(costar)
 
-        print(matches)
-
         # Delete temp
         self.DB.run_cmd("DELETE temp;")
 
-        return matches
+        return ", ".join(matches)
 
     def __init__(self) :
         self.DB = JSON_Parser.DB()
