@@ -17,9 +17,11 @@ class Lexer(object):
     # Given a schema rule and a value, check if the rule is being followed.
     def check_schema(self, schema, value):
         # VARCHAR case
+        #print(schema.split("(")[0] + ": " + str(value[:16]))
         if schema.split("(")[0].lower() == "varchar":
             # Check if the length of the character string abides by the schema
             if len(value) > int(schema.split("(")[1].replace(")", "")):
+                print("TOO LARGE VARCHAR!")
                 return False # TOO LARGE!
             else:
                 return True  # Works.
@@ -28,6 +30,7 @@ class Lexer(object):
             if value.isdigit():
                 return True  # Is an integer.
             else:
+                print("IS NOT DIGIT: " + str(value))
                 return False # Is some junk.
              
     # Returns the index of the operator to split expression into left and right components
@@ -653,6 +656,9 @@ class Lexer(object):
     # their ASCII values, and generates a key.
     def generate_key(self, key_rules, attributes, values):
         key = 0
+        if len(key_rules) == 1:
+            return values[0]
+        
         for i in range(len(attributes)):
             # Check if a given variable is a primary key
             if attributes[i] in key_rules:
