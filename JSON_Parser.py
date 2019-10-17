@@ -199,9 +199,6 @@ class DB(object):
         
         # Check actors
         #self.run_cmd("SHOW actors;")
-            
-if __name__ == '__main__':
-    DB()
         
         
         
