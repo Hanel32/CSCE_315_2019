@@ -204,31 +204,29 @@ class Queries:
 
         return worstMovie
 
-    def constellation(self, actor, num):
+    def constellation(self, actor, num=1):
         costar_constellation = {}
         num = int(num)
+        actor = actor.replace(" ", "_")
 
         # Get actor info and movie list
         actor_info = self.DB.run_cmd("temp <- select (name == " + actor + ") actors;")
-        name = " "
         for a in actor_info:
             movies = self.StringToList(actor_info[a]["movies"])
-            name = a
-        if name != " ":
-        	self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
+        self.DB.run_cmd("DELETE temp;")
 
         # Get actor (id, name, movies) table
         costar_info = self.DB.run_cmd("temp <- project (id, name, movies) actors;")
-        ids = []
+
+        # Fill costar_constellation dict with costar_constellation[costar] = numMoviesTogether
         for costar in costar_info:
         	costar = costar_info[costar]
-        	ids.append(costar["id"])
+        	costar_constellation[costar["name"]] = 0
+
+            # Check for each movie and increment entry if a match
         	for movie in movies:
         		if movie in costar["movies"]:
-        			if costar["name"] in costar_constellation:
-        				costar_constellation[costar["name"]] = costar_constellation[costar["name"]] + 1
-        			else:
-        				costar_constellation[costar["name"]] = 1
+        			costar_constellation[costar["name"]] = costar_constellation[costar["name"]] + 1
 
         # Search through costar table and select those with num appearances
         matches = []
@@ -239,7 +237,8 @@ class Queries:
         # Delete temp
         self.DB.run_cmd("DELETE temp;")
 
-        return ", ".join(matches)
+        # Return list of co-stars as a string
+        return ", ".join(matches).replace("_", " ")
 
     def __init__(self) :
         self.DB = JSON_Parser.DB()
