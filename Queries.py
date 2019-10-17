@@ -20,7 +20,7 @@ class Queries:
         return listFromString
 
     # Actually performs the Bacon Number calculation
-    def BaconNumberRecursive(self, actorB, actorsTable, moviesTable, movieList, baconNumber) :
+    def BaconNumberRecursive(self, actorB, actorsTable, moviesTable, actorsList, baconNumber) :
 
         baconNumber += 1
         print("bacon number: " + str(baconNumber))
@@ -30,29 +30,30 @@ class Queries:
         # Make empty list of actor IDs
         actorIDs = []
 
-        for movie in movieList :
-            actorList = self.StringToList(moviesTable[movie]['actors'])
-            for actor in actorList :
-                actorName = actorsTable[actor]['name'].replace(" ", "_")
-                #print(actorName)
-                # add actor's ID to list (skip duplicates)
-                if not actor in actorIDs :
-                    actorIDs.append(actor)
-                if actorName == actorB :
-                    # add Bacon Number, actor's name, movie to the list at start
-                    newStep = self.StepToActorB(baconNumber, actorName, moviesTable[movie]['title'])
-                    pathToActorB.append(newStep)
-                    return pathToActorB
+        for sourceActor in actorsList :
+            movieList = self.StringToList(actorsTable[sourceActor]['movies'])
+            for movie in movieList :
+                actorList = self.StringToList(moviesTable[movie]['actors'])
+                for actor in actorList :
+                    actorName = actorsTable[actor]['name'].replace(" ", "_")
+                    #print(actorName)
+                    # add actor's ID to list (skip duplicates)
+                    if not actor in actorIDs :
+                        actorIDs.append(actor)
+                    if actorName == actorB :
+                        # add Bacon Number, actor's name, movie to the list at start
+                        newStep = self.StepToActorB(baconNumber, actorsTable[sourceActor]['name'].replace(" ", "_"), moviesTable[movie]['title'])
+                        pathToActorB.append(newStep)
+                        return pathToActorB
 
-        newMovieList = []
+        # newMovieList = []
+        # for actorId in actorIDs :
+        #     newMovieList += self.StringToList(actorsTable[actorId]['movies'])
 
-        for actorId in actorIDs :
-            newMovieList += self.StringToList(actorsTable[actorId]['movies'])
+        # # removes duplicate movies
+        # newMovieList = list(dict.fromkeys(newMovieList))
 
-        # removes duplicate movies
-        newMovieList = list(dict.fromkeys(newMovieList))
-
-        pathToActorB += self.BaconNumberRecursive(actorB, actorsTable, moviesTable, newMovieList, baconNumber)
+        pathToActorB += self.BaconNumberRecursive(actorB, actorsTable, moviesTable, actorIDs, baconNumber)
         return pathToActorB
 
     # Calls the actual worker function, and interprets the output into a string
@@ -81,7 +82,10 @@ class Queries:
             movieListA = self.StringToList(actorAData[key]['movies'])
             actorAID = key
 
-        baconPath = self.BaconNumberRecursive(actorB, actorsTable, moviesTable, self.StringToList(actorsTable[actorAID]['movies']), 0)
+        actorList = []
+        actorList.append(actorAID)
+
+        baconPath = self.BaconNumberRecursive(actorB, actorsTable, moviesTable, actorList, 0)
 
         retString = "Bacon Number: " + str(baconPath[-1].number) + '\n' + "Path: " + actorAOrig + " -> "
 
@@ -90,15 +94,12 @@ class Queries:
         for item in baconPath :
             retString += item.movie.replace("_", " ") + " -> " + item.name.replace("_", " ")
             # index += 1
-        # TODO actually format this output and return it as a string (replace "_" with " " as well)
 
         return retString
 
-        
-
     def Typecasting(self, actorToUse) :
 
-        actor = actorToUse.lower()
+        actor = actorToUse.replace(" ", "_")
 
         if actor == "" :
             return ""
@@ -113,36 +114,34 @@ class Queries:
         genreCounts = []
 
         # Get actor's data from DB
-        #print("temp <- select (name == \"" + actor + "\") actors;")
-        actorData = self.DB.run_cmd("temp <- select (name == \"" + actor + "\") actors;")
+        newTblName = self.randomString()
+        actorData = self.DB.run_cmd(newTblName + " <- select (name == \"" + actor + "\") actors;")
+        actorID = " "
+        for key in actorData :
+            actorID = key
 
-        movieList = self.StringToList(actorData["movies"])
+        # Get list of movies for this actor
+        movieList = self.StringToList(actorData[actorID]['movies'])
 
-        DB.run_cmd("DELETE temp;")
+        # Get the movies table for easy access
+        newTblName1 = self.randomString()
+        moviesTable = self.DB.run_cmd(newTblName1 + " <- project (id, genres) movies;")
 
-        # Iterate through all the movies (by ID) the actor has stared in
+        # Iterate through all the movies (by ID) the actor has starred in
         for movie in movieList :
-
-            # Get the movie's data from DB
-            movieData = self.DB.run_cmd("temp <- select (id == " + movie + ") movies;")
-
-            genreList = self.StringToList(movieData["genres"])
-
-            DB.run_cmd("DELETE temp;")
-
+            genreList = self.StringToList(moviesTable[movie]['genres'])
             # Used to make new genre objects when appropriate
             genresToCheck = genreList
-
             # Iterate through all the genres from an actor's movies
             for genre in genreCounts :
                 # Check the current genre against all the genres for this movie
                 for movieGenre in genreList :
-                    if movieGenre == genre :
+                    if movieGenre.lower() == genre.genreName.lower() :
                         genre.genreCount += 1
                         # Get rid of this element, as we have already checked it
                         genresToCheck.remove(movieGenre)
 
-            # Will only operate on any genres tha movie had that weren't already in the list
+            # Will only operate on any genres that movie had that weren't already in the list
             for genre in genresToCheck :
                 newGenre = GenreAndCount(genre, 1)
                 genreCounts.append(newGenre)
@@ -156,10 +155,8 @@ class Queries:
                 maxCountOfGenre = item.genreCount
                 maxGenre = item
 
-        retString = actorToUse + " has starred in more " + maxGenre.genreName + " movies than \
-            any other genre, having appeared in " + maxGenre.genreCount + " of these movies."
-
-        #print(retString)
+        retString = str(actorToUse) + " has starred in more " + str(maxGenre.genreName) + " movies than"
+        retString += " any other genre, having appeared in " + str(maxGenre.genreCount) + " movies of this genre."
 
         return retString
     
@@ -268,8 +265,9 @@ class Queries:
 
 def Main() :
     queries = Queries()
-    print(queries.BaconNumber("Uwe Boll", "Christopher Lee"))
-    print(queries.BaconNumber("Kevin Bacon", "John Cena"))
-    print("Bacon Number done")
+    # print(queries.BaconNumber("Uwe Boll", "Christopher Lee"))
+    # print(queries.BaconNumber("Kevin Bacon", "John Cena"))
+    # print("Bacon Number done")
+    print(queries.Typecasting("Christopher Lee"))
 
 Main()
