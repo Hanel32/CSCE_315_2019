@@ -17,9 +17,11 @@ class Lexer(object):
     # Given a schema rule and a value, check if the rule is being followed.
     def check_schema(self, schema, value):
         # VARCHAR case
+        #print(schema.split("(")[0] + ": " + str(value[:16]))
         if schema.split("(")[0].lower() == "varchar":
             # Check if the length of the character string abides by the schema
             if len(value) > int(schema.split("(")[1].replace(")", "")):
+                print("TOO LARGE VARCHAR!")
                 return False # TOO LARGE!
             else:
                 return True  # Works.
@@ -28,6 +30,7 @@ class Lexer(object):
             if value.isdigit():
                 return True  # Is an integer.
             else:
+                print("IS NOT DIGIT: " + str(value))
                 return False # Is some junk.
              
     # Returns the index of the operator to split expression into left and right components
@@ -653,6 +656,9 @@ class Lexer(object):
     # their ASCII values, and generates a key.
     def generate_key(self, key_rules, attributes, values):
         key = 0
+        if len(key_rules) == 1:
+            return values[0]
+        
         for i in range(len(attributes)):
             # Check if a given variable is a primary key
             if attributes[i] in key_rules:
@@ -1239,34 +1245,43 @@ class Lexer(object):
 
             return self.tables[table]
     
+    def run_cmd(self, line):
+         line = line.replace("\n", "") # Remove \n
+         line = line.replace("\r", "") # Remove \r
+         arr  = line.split(" ")        # Split all lines on input
+            
+         # Skips empty space
+         if len(arr) > 1:
+             # If the line is a command...
+             if CMD.match(arr[0], re.IGNORECASE):
+                    
+                 # Check for exit case
+                 if not self.parse_command(arr):
+                     # Exits on return of False
+                     return False
+                    
+             # If the line is a query...
+             else:
+                 return self.parse_query(arr)
+             
     # Constructor for the class, and where to put class variables.
-    def __init__(self, filename):
+    def __init__(self, filename=None):
         # In-memory representations of databases.
         self.files        = {}           # Holds a pointer to the files that have been opened for tables, indexed by table name.
         self.tables       = {}           # Holds in-memory representations of the tables, indexed by table name.
         self.schemas      = {}           # Holds the schema for tables in an array, indexed by table name.
         self.primary_keys = {}           # Holds the primary keys of the table, so that new records can be given new keys, indexed by table name.
-        self.stream       = open(filename, "r")
         
-        # Parses the file, line by line (command by command)
-        for line in self.stream:
-            line = line.replace("\n", "") # Remove \n
-            line = line.replace("\r", "") # Remove \r
-            arr  = line.split(" ")        # Split all lines on input
+        # If a file is given to the constructor, parse it.
+        if not filename is None:
+            self.stream       = open(filename, "r")
             
-            # Skips empty space
-            if len(arr) > 1:
-                # If the line is a command...
-                if CMD.match(arr[0], re.IGNORECASE):
-                    
-                    # Check for exit case
-                    if not self.parse_command(arr):
-                        # Exits on return of False
-                        return
-                    
-                # If the line is a query...
-                else:
-                    self.parse_query(arr)
+            # Parses the file, line by line (command by command)
+            for line in self.stream:
+                # Exits program on return of False
+                if not self.run_cmd(line):
+                    return
+        
    
 # Program start - can go into another file.     
 def Main():
@@ -1276,5 +1291,4 @@ def Main():
     #lexicon = Lexer(os.path.join(__location__, 'test5.txt'))
     
 
-Main() # Needed to make Main work.    
-#=======
+Main() # Needed to make Main work. 
