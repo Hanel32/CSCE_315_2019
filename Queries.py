@@ -80,7 +80,7 @@ class Queries:
         
         pathToActorB = pathToActorB + listToAdd
 
-        returnString = "Bacon Number: " + pathToActorB[-1].number '\n' + "Path:\n" + actorAOrig + '\n'
+        returnString = "Bacon Number: " + pathToActorB[-1].number + '\n' + "Path:\n" + actorAOrig + '\n'
 
         for item in pathToActorB :
             returnString = returnString + item.movie + '\n' + item.name + '\n'
@@ -157,15 +157,15 @@ class Queries:
         return retString
     
     def CoverRoles(self, characterName):
-        characterData = DB.run_cmd("temp <- select (characters == " + characterName + ") characters;")
-        DB.run_cmd("DELETE temp;")
+        characterData = self.DB.run_cmd("temp <- select (characters == " + characterName + ") characters;")
+        self.DB.run_cmd("DELETE temp;")
 
         CoverRoleActors = characterData["actors_played"];
 
         retString = "The following actors have played " + characterName + " :\n"
 
         # Adds all actor names to retString
-        for actor in CoverRoleActors
+        for actor in CoverRoleActors:
             retString = retString + actor + ", "
 
         # Remove last comma if one was added
@@ -178,15 +178,15 @@ class Queries:
 
     def BestWorstDays(self, actorName) :
         # Get actor's data from DB
-        actorData = DB.run_cmd("temp <- select (name == " + actorName + ") actors;")
-        DB.run_cmd("DELETE temp;")
+        actorData = self.DB.run_cmd("temp <- select (name == " + actorName + ") actors;")
+        self.DB.run_cmd("DELETE temp;")
 
         # Obtains the actor's best ranked movie
         bestMovie = actorData["best_movie"]
 
         # Obtains the data for that movie
-        movieData = DB.run_cmd("temp <- select (id == " + bestMovie + ") movies;")
-        DB.run_cmd("DELETE temp;")
+        movieData = self.DB.run_cmd("temp <- select (id == " + bestMovie + ") movies;")
+        self.DB.run_cmd("DELETE temp;")
 
         # Obtains the worst ranked movie of the same director as that movie
         worstMovie = movieData["directors_worst"]
