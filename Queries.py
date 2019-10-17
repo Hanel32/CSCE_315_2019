@@ -4,7 +4,7 @@ import JSON_Parser as DB
 class Queries:
 
     def StringToList(self, string) :
-        listFromString = string.split(', ')
+        listFromString = string.split('|')
         return listFromString
 
     def BaconNumber(self, actorAOrig, actorBOrig) : # These are the actor's names as strings
