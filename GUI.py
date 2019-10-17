@@ -1,13 +1,12 @@
 import sys
-from Queries import Queries
 #Have to install PyQt5, pip install PyQt5
-from PyQt5.QtWidgets import QApplication, QWidget, QComboBox, QLabel, QLineEdit, QPushButton
+import Queries
+from PyQt5.QtWidgets import QApplication, QWidget, QComboBox, QLabel, QLineEdit, QPushButton, QTextEdit
 
 class Example(QWidget):
     def __init__(self):
         super().__init__()
         
-        self.q = Queries()
         self.initUI()
     
     def initUI(self):
@@ -37,6 +36,14 @@ class Example(QWidget):
         self.button = QPushButton('Execute', self)
         self.button.move(50,250)
         self.button.clicked.connect(self.on_click)
+        
+        self.output=QTextEdit(self)
+        self.output.move(50,350)
+        self.output.resize(650,400)
+        self.output.setEnabled(False)
+        
+        self.outputLbl = QLabel("Output",self)
+        self.outputLbl.move(50,330)
 
         combo.activated[str].connect(self.onActivated)        
          
@@ -76,27 +83,23 @@ class Example(QWidget):
     def on_click(self):
         textBox1 = self.arg1.text()
         textBox2 = self.arg2.text()
-          
+         
         if(self.lbl.text() == "Bacon Number"):
             #Call Bacon Number
-            print(textBox1 + " " + textBox2)
-            self.q.BaconNumber(textBox1, textBox2)
+            string = self.queries.BaconNumber(textBox1,textBox2)
+            self.output.setText(string)
         elif(self.lbl.text() == "Constellation of Co-Stars"):
             #Call Constellation of Co-Star
-            print(textBox1 + ' ' + textBox2)
-            self.q.constellation(textBox1, textBox2)
+            string = self.queries.constellation(textBox1,textBox2)
         elif(self.lbl.text() == "Typecasting"):
             #Call Typecasting function
-            print(textBox1)
-            self.q.Typecasting(textBox1)
+            string = self.queries.TypeCasting(queries,textBox1)
         elif(self.lbl.text() == "Cover Roles"):
             #Call Cover Roles
-            print(textBox1)
-            self.q.CoverRoles(textBox1)
+            string = self.queries.CoverRoles(textBox1)
         elif(self.lbl.text() == "Best of Days, Worst of Days"):
             #Call Best of Days, Worst of Days
-            print(textBox1)
-            self.q.BestWorstDays(textBox1)
+            string = self.queries.BestWorstDays(textBox1)
             
         self.arg1.setText("")
         self.arg2.setText("")
@@ -104,5 +107,6 @@ class Example(QWidget):
 if __name__ == '__main__':
     
     app = QApplication(sys.argv)
+    queries = Queries.Queries()
     ex = Example()
     sys.exit(app.exec_())
