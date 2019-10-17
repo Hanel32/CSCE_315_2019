@@ -156,6 +156,39 @@ class Queries:
 
         return retString
 
+    def constellation(self, actor, num):
+        costar_list = {}
+        num = int(num)
+
+        # Get actor info and movie list
+        actor = self.DB.run_cmd("tmp <- select (name == " + actor + ") actors;")
+        movies = self.StringToList(actor["movies"])
+        DB.run_cmd("DELETE tmp;")
+
+        # Find actor list for each movie and add to list
+        for movie in movies:
+            # Get actor list
+            movie = self.DB.run_cmd("tmp <- select (title == " + movie + ") movies;")
+            actors = self.StringToList(movie["actors"])
+            DB.run_cmd("DELETE tmp;")
+
+            # Add each actor to costar dictionary and update number of appearances
+            for a in actors:
+                # If actor is already in list, increment appearances
+                if a in costar_list:
+                    costar_list[a] = costar_list[a] + 1
+                # Add actor to list
+                else:
+                    costar_list[a] = 1
+
+        # Look through costar_list and return costars with num of appearances
+        costar_constellation = []
+        for costar,appearances in costar_list.items():
+            if appearances == num:
+                costar_constellation.append(costar)
+
+        return costar_constellation
+
     def __init__(self) :
         self.DB = JSON_Parser.DB()
         self.engine = regex_lexicon.Lexer()
