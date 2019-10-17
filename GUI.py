@@ -41,6 +41,7 @@ class Example(QWidget):
         self.output.move(50,350)
         self.output.resize(650,400)
         self.output.setEnabled(False)
+        self.output.verticalScrollBar()
         
         self.outputLbl = QLabel("Output",self)
         self.outputLbl.move(50,330)
@@ -88,22 +89,27 @@ class Example(QWidget):
             #Call Bacon Number
             string = queries.BaconNumber(textBox1,textBox2)
             self.output.setText(string)
+            self.output.setEnabled(True)
         elif(self.lbl.text() == "Constellation of Co-Stars"):
             #Call Constellation of Co-Star
             string = queries.constellation(textBox1,textBox2)
             self.output.setText(string)
+            self.output.setEnabled(True)
         elif(self.lbl.text() == "Typecasting"):
             #Call Typecasting function
             string = queries.TypeCasting(queries,textBox1)
             self.output.setText(string)
+            self.output.setEnabled(True)
         elif(self.lbl.text() == "Cover Roles"):
             #Call Cover Roles
             string = queries.CoverRoles(textBox1)
             self.output.setText(string)
+            self.output.setEnabled(True)
         elif(self.lbl.text() == "Best of Days, Worst of Days"):
             #Call Best of Days, Worst of Days
             string = queries.BestWorstDays(textBox1)
             self.output.setText(string)
+            self.output.setEnabled(True)
             
         self.arg1.setText("")
         self.arg2.setText("")
