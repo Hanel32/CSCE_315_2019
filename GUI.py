@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QComboBox, QLabel, QLineEdit,
 class Example(QWidget):
     def __init__(self):
         super().__init__()
-        
+
         self.initUI()
     
     def initUI(self):
@@ -86,20 +86,24 @@ class Example(QWidget):
          
         if(self.lbl.text() == "Bacon Number"):
             #Call Bacon Number
-            string = self.queries.BaconNumber(textBox1,textBox2)
+            string = queries.BaconNumber(textBox1,textBox2)
             self.output.setText(string)
         elif(self.lbl.text() == "Constellation of Co-Stars"):
             #Call Constellation of Co-Star
-            string = self.queries.constellation(textBox1,textBox2)
+            string = queries.constellation(textBox1,textBox2)
+            self.output.setText(string)
         elif(self.lbl.text() == "Typecasting"):
             #Call Typecasting function
-            string = self.queries.TypeCasting(queries,textBox1)
+            string = queries.TypeCasting(queries,textBox1)
+            self.output.setText(string)
         elif(self.lbl.text() == "Cover Roles"):
             #Call Cover Roles
-            string = self.queries.CoverRoles(textBox1)
+            string = queries.CoverRoles(textBox1)
+            self.output.setText(string)
         elif(self.lbl.text() == "Best of Days, Worst of Days"):
             #Call Best of Days, Worst of Days
-            string = self.queries.BestWorstDays(textBox1)
+            string = queries.BestWorstDays(textBox1)
+            self.output.setText(string)
             
         self.arg1.setText("")
         self.arg2.setText("")
