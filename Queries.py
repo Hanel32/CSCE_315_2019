@@ -1,5 +1,5 @@
-import regex_lexicon as engine
-import JSON_Parser as DB
+import regex_lexicon
+import JSON_Parser
 
 class Queries:
 
@@ -206,9 +206,9 @@ class Queries:
         num = int(num)
 
         # Get actor info and movie list
-        actor = self.DB.run_cmd("tmp <- select (name == " + actor + ") actors;")
+        actor = self.DB.run_cmd("hey <- select (name == " + actor + ") actors;")
         movies = self.StringToList(actor["movies"])
-        DB.run_cmd("DELETE tmp;")
+        DB.run_cmd("DELETE hey;")
 
         # Find actor list for each movie and add to list
         for movie in movies:
