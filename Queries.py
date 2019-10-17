@@ -157,13 +157,11 @@ class Queries:
         return retString
     
     def CoverRoles(self, characterName):
-        characterData = self.DB.run_cmd("temp <- select (name == " + characterName + ") actors;")
+        characterData = self.DB.run_cmd("temp <- select (name == " + characterName + ") characters;")
         for char in characterData:
             charData = characterData[char]
             name = char
         self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
-
-        print(charData["movies"])
 
         CoverRoleActors = charData["actors_played"];
 
