@@ -179,12 +179,14 @@ class DB(object):
                 # Find the director
                 for person in cast[x]['crew']:
                     if 'director' in person['job'].lower():
-                        d_id = person['name']
+                        d_id = person['id']
                         if d_id not in directors_worst.keys():
                             directors_worst[d_id] = []
                             directors_worst[d_id].append(x)
+                            break
                         else:
                             directors_worst[d_id].append(x)
+                            break
                 
             # Calculate each director's worst movie.
             for x in directors_worst.keys():
