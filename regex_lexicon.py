@@ -94,6 +94,16 @@ class Lexer(object):
             atom = line[i:]
             atom = self.evaluateAtomic(atom)
 
+            # Get list of attribute types
+            type_lst = []
+            for atr, typ in zip(self.schemas[atom]["attributes"], self.schemas[atom]["types"]):
+                if atr in attr_lst:
+                    type_lst.append(typ)
+
+            self.schemas[tmp_name]["attributes"] = attr_lst
+            self.schemas[tmp_name]["types"] = type_lst
+            self.primary_keys[tmp_name] = attr_lst
+
             # Make a dummy line for fake select request to call select funtion
             dummy_line = [' ']*(4+len(attr_lst))
             dummy_line[0] = tmp_name
@@ -646,9 +656,11 @@ class Lexer(object):
     # their ASCII values, and generates a key.
     def generate_key(self, key_rules, attributes, values):
         key = 0
-        key = int(key)
         if len(key_rules) == 1:
-            return values[0]
+            for i in range(len(attributes)):
+                # Check if a given variable is a primary key
+                if attributes[i] in key_rules:
+                    return values[i]
         
         for i in range(len(attributes)):
             # Check if a given variable is a primary key
@@ -693,7 +705,7 @@ class Lexer(object):
         # Open the file, begin populating the table.
         line_count = 0
         self.tables[tablename] = {}
-        with open(file_location)  as csv_file:
+        with open(file_location, encoding ='utf-8')  as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=",")
             variables  = []
             types      = []
@@ -718,7 +730,6 @@ class Lexer(object):
                         self.tables[tablename][row[0]][variables[i - 1]] = row[i] 
                 line_count += 1
             self.schemas[tablename] = types
-        print(self.tables[tablename])
                         
     # Closes the given table, and removes it from the table dictionary.
     def close(self, line):
@@ -748,7 +759,7 @@ class Lexer(object):
         
         # Write the table into a CSV formatted file.
         filename = str(table) + ".csv"
-        with open(filename, 'w') as f:
+        with open(filename, 'w', encoding="utf-8") as f:
             # Save a pointer to this output file.
             self.files[table] = f                
             
@@ -915,13 +926,6 @@ class Lexer(object):
     
     # Delete from a table some subset that matches a condition.
     def delete(self, line):
-        if line[1] != "FROM":
-        	table = line[1][:len(line[1])-1]
-        	del self.tables[table]
-        	del self.schemas[table]
-        	del self.primary_keys[table]
-        	return
-
         # Checks that the requested table exists
         table_name = line[2]
         if table_name not in self.tables.keys():
@@ -1043,7 +1047,6 @@ class Lexer(object):
         #Setup our new table
         self.tables[new_name] = {}
         self.schemas[new_name] = {} 
-        self.primary_keys[new_name] = {}
 
         #attributes
         types      = []
@@ -1055,22 +1058,34 @@ class Lexer(object):
                     types.append(self.schemas[nextInLine]["types"][x])
             j += 1 
 
+        #Setup primary keys as well
+        j = 0
+        while j < len(attributes):
+            for x in range(len(self.primary_keys[nextInLine])):
+                if(attributes[j] == self.primary_keys[nextInLine][x]):
+                    keys.append(self.primary_keys[nextInLine][x])
+            j += 1
+
         #Setting values for our table
         self.schemas[new_name]["attributes"] = attributes
         self.schemas[new_name]["types"]      = types
-        self.primary_keys[new_name]          = {"id"}
+        self.primary_keys[new_name]          = keys
         
         #Now we need to move actual data from our original table to this table
-        for row in self.tables[nextInLine]:
-        	vals = []
-        	for attr in attributes:
-        		vals.append(self.tables[nextInLine][row][attr])
-        	dummy_line = [' ', ' ', new_name, ' ', ' ']
-        	dummy_line = dummy_line + vals
-        	dummy_line[5] = "(\"" + dummy_line[5]
-        	dummy_line[-1] = dummy_line[-1] + ");"
-        	self.insert(dummy_line)
+        # STILL NEED TODO 
+        for x in self.tables[nextInLine].keys():
+            values = []
+            for y in range(len(attributes)):
+                values.append(self.tables[nextInLine][x][attributes[y]])
+            
+            schema = self.schemas[new_name]
+            key_rules   = self.primary_keys[new_name]
+            primary_key = self.generate_key(key_rules, schema["attributes"], values)
 
+            self.tables[new_name][primary_key] = {}
+            # Insert the data into the record, indexed by variable name.
+            for varname, val in zip(self.schemas[new_name]["attributes"], values):
+                self.tables[new_name][primary_key][varname] = val
         return new_name
     
     # Renames a table
