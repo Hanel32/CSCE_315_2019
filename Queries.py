@@ -226,7 +226,7 @@ class Queries:
         # Obtains movies table
         newTblName2 = self.randomString()
         # moviesTable = self.DB.run_cmd(newTblName2 + " <- project (id, title, actors) movies;")
-        moviesTable = self.DB.run_cmd(newTblName2 + " <- project (id, title) movies;")
+        moviesTable = self.DB.run_cmd(newTblName2 + " <- project (id, title, directors_worst) movies;")
 
         worstMovieID = moviesTable[bestMovieID]['directors_worst']
 
