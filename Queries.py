@@ -223,23 +223,31 @@ class Queries:
 
         # Obtains movies table
         newTblName2 = self.randomString()
-        moviesTable = self.DB.run_cmd(newTblName2 + " <- project (id, title, actors) movies;")
+        # moviesTable = self.DB.run_cmd(newTblName2 + " <- project (id, title, actors) movies;")
+        moviesTable = self.DB.run_cmd(newTblName2 + " <- project (id, title) movies;")
 
-        bestMovieName = " "
-        worstMovieID = " "
-        for movieID in moviesTable.keys():
-            if movieID == bestMovieID:
-                bestMovieName = moviesTable[movieID]["title"]
-                worstMovieID = moviesTable[movieID]["directors_worst"]
+        worstMovieID = moviesTable[bestMovieID]['directors_worst']
 
-        worstMovieName = " "
-        for movieID in moviesTable.keys():
-            if movieID == worstMovieID:
-                worstMovieName = moviesTable[movieID]["title"]
+        # bestMovieName = " "
+        # worstMovieID = " "
+        # for movieID in moviesTable.keys():
+        #     if movieID == bestMovieID:
+        #         bestMovieName = moviesTable[movieID]["title"]
+        #         worstMovieID = moviesTable[movieID]["directors_worst"]
+
+        # worstMovieName = " "
+        # for movieID in moviesTable.keys():
+        #     if movieID == worstMovieID:
+        #         worstMovieName = moviesTable[movieID]["title"]
 
         # Creates retString to display results to user
-        retString = "The highest rated movie " + actorName + " has appeared in is " + bestMovieName + ".\n" \
-                  + "The lowest rated movie directed by " + bestMovieName + "'s director is " + worstMovieName
+        # retString = "The highest rated movie " + actorName + " has appeared in is " + bestMovieName + ".\n" \
+        #           + "The lowest rated movie directed by " + bestMovieName + "'s director is " + worstMovieName
+        bestMovieName = moviesTable[bestMovieID]['title'].replace("_", " ")
+        worstMovieName = moviesTable[worstMovieID]['title'].replace("_", " ")
+
+        retString = "The highest rated movie " + actorName + " has appeared in is " + bestMovieName + ".\n"
+        retString += "The lowest rated movie directed by " + bestMovieName + "'s director is " + worstMovieName
 
         #print(retString)
 
@@ -328,5 +336,6 @@ def Main() :
     # print(queries.BaconNumber("Mary Pickford", "Kevin Bacon"))
     # print(queries.BaconNumber("Dwayne Johnson", "Robin Williams"))
     # print(queries.Typecasting("James Gandolfini"))
+    print(queries.BestWorstDays("John Cena"))
 
 Main()
