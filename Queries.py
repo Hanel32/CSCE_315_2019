@@ -187,7 +187,7 @@ class Queries:
 
         CoverRoleActors = characterData[characterID]["actors_played"]
 
-        retString = "\nThe following actors have played " + characterName + " :\n"
+        retString = "The following actors have played " + characterName + " :\n"
 
         # Adds all actor names to retString
         for actorNamePart in CoverRoleActors:
@@ -338,6 +338,6 @@ def Main() :
     # print(queries.BaconNumber("Mary Pickford", "Kevin Bacon"))
     # print(queries.BaconNumber("Dwayne Johnson", "Robin Williams"))
     # print(queries.Typecasting("James Gandolfini"))
-    print(queries.BestWorstDays("John Cena"))
+    # print(queries.BestWorstDays("John Cena"))
 
 Main()
