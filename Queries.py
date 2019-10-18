@@ -297,7 +297,7 @@ class Queries:
 
 def Main() :
     queries = Queries()
-    # print(queries.BaconNumber("Uwe Boll", "Christopher Lee"))
+    # print(queries.BaconNumber("Al Pacino", "Tommy Wiseau"))
     # print(queries.BaconNumber("Kevin Bacon", "John Cena"))
     # print(queries.BaconNumber("Mary Pickford", "Kevin Bacon"))
     # print(queries.BaconNumber("Dwayne Johnson", "Robin Williams"))
