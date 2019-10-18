@@ -172,13 +172,21 @@ class Queries:
         return retString
     
     def CoverRoles(self, characterName):
-        characterData = self.DB.run_cmd("temp <- select (name == " + characterName + ") characters;")
-        for char in characterData:
-            charData = characterData[char]
-            name = char
-        self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
+        print("Cover Roles called")
 
-        CoverRoleActors = charData["actors_played"]
+        character = characterName.replace(" ", "_")
+
+        if character == "":
+            return ""
+
+        newTblName = self.randomString()
+        characterData = self.DB.run_cmd(newTblName + " <- select (name == \"" + character + "\") characters;")
+
+        characterID = " "
+        for key in actorData:
+            actorID = key
+
+        CoverRoleActors = characterData["actors_played"]
 
         retString = "The following actors have played " + characterName + " :\n"
 
@@ -195,29 +203,47 @@ class Queries:
         return retString
 
     def BestWorstDays(self, actorName) :
+        print("Best of Days, Worst of Days called")
+
+        actor = actorName.replace(" ", "_")
+
+        if actor == "":
+            return ""
+
         # Get actor's data from DB
-        actorData = self.DB.run_cmd("temp <- select (name == " + actorName + ") actors;")
-        self.DB.run_cmd("DELETE temp;")
+        newTblName1 = self.randomString()
+        actorData = self.DB.run_cmd(newTblName1 + " <- select (name == \"" + actor + "\") actors;")
 
-        # Obtains the actor's best ranked movie
-        bestMovie = actorData["best_movie"]
+        actorID = " "
+        for key in actorData:
+            actorID = key
 
-        # Obtains the data for that movie
-        movieData = self.DB.run_cmd("temp <- select (id == " + bestMovie + ") movies;")
-        self.DB.run_cmd("DELETE temp;")
+        # Obtains the id for actor's best ranked movie
+        bestMovieID = actorData[actorID]["best_movie"]
 
-        # Obtains the worst ranked movie of the same director as that movie
-        worstMovie = movieData["directors_worst"]
+        # Obtains movies table
+        newTblName2 = self.randomString()
+        moviesTable = self.DB.run_cmd(newTblName2 + " <- project (id, title, actors) movies;")
+
+        bestMovieName = " "
+        worstMovieID = " "
+        for movieID in moviesTable.keys():
+            if movieID == bestMovieID:
+                bestMovieName = moviesTable[movieID]["title"]
+                worstMovieID = moviesTable[movieID]["directors_worst"]
+
+        worstMovieName = " "
+        for movieID in moviesTable.keys():
+            if movieID == worstMovieID:
+                worstMovieName = moviesTable[movieID]["title"]
 
         # Creates retString to display results to user
-        retString = "The highest rated movie " + actorName + " has appeared in is " + bestMovie + ".\n" \
-                  + "The lowest rated movie directed by " + bestMovie["name"] + "'s director is " + worstMovie
+        retString = "The highest rated movie " + actorName + " has appeared in is " + bestMovieName + ".\n" \
+                  + "The lowest rated movie directed by " + bestMovieName + "'s director is " + worstMovieName
 
         #print(retString)
 
         return retString
-
-        return worstMovie
 
     def constellation(self, actor, num=1):
         costar_constellation = {}
