@@ -172,35 +172,37 @@ class Queries:
         return retString
     
     def CoverRoles(self, characterName):
-        print("Cover Roles called")
-
         character = characterName.replace(" ", "_")
 
         if character == "":
             return ""
 
+        # Get character's data from DB
         newTblName = self.randomString()
         characterData = self.DB.run_cmd(newTblName + " <- select (name == \"" + character + "\") characters;")
 
         characterID = " "
-        for key in actorData:
-            actorID = key
+        for key in characterData:
+            characterID = key
 
-        CoverRoleActors = characterData["actors_played"]
+        CoverRoleActors = characterData[characterID]["actors_played"]
 
-        retString = "The following actors have played " + characterName + " :\n"
+        retString = "\nThe following actors have played " + characterName + " :\n"
 
         # Adds all actor names to retString
-        for actor in CoverRoleActors:
-            retString = retString + actor + ", "
-
-        # Remove last comma if one was added
-        if len(CoverRoleActors) != 0:
-            retString = retString[:-2]
+        for actorNamePart in CoverRoleActors:
+            pieceOfName = actorNamePart.replace(",", "")
+            if pieceOfName == "|":
+                retString = retString + "\n"
+            else:
+                if pieceOfName == "_":
+                    retString = retString + " "
+                else:
+                    retString = retString + pieceOfName
 
         #print(retString)
 
-        return retString
+        return retString + "\n"
 
     def BestWorstDays(self, actorName) :
         print("Best of Days, Worst of Days called")
