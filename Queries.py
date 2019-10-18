@@ -205,7 +205,6 @@ class Queries:
         return retString + "\n"
 
     def BestWorstDays(self, actorName) :
-        print("Best of Days, Worst of Days called")
 
         actor = actorName.replace(" ", "_")
 
@@ -256,9 +255,9 @@ class Queries:
         return retString
 
     def constellation(self, actor, num=1):
-        costar_constellation = {}
         num = int(num)
         actor = actor.replace(" ", "_")
+        matches = []
 
         # Get actor info and movie list
         actor_info = self.DB.run_cmd("temp <- select (name == " + actor + ") actors;")
@@ -272,72 +271,22 @@ class Queries:
         # Fill costar_constellation dict with costar_constellation[costar] = numMoviesTogether
         for costar in costar_info:
         	costar = costar_info[costar]
-        	costar_constellation[costar["name"]] = 0
+        	n = 0
 
             # Check for each movie and increment entry if a match
         	for movie in movies:
         		if movie in costar["movies"]:
-        			costar_constellation[costar["name"]] = costar_constellation[costar["name"]] + 1
+        			n += 1
 
-        # Search through costar table and select those with num appearances
-        matches = []
-        for costar, appearances in costar_constellation.items():
-        	if (appearances == num) & (costar != actor):
-        		matches.append(costar)
+        	# Check if n == num co-appearances
+        	if (n == num) & (costar["name"] != actor.replace(" ", "_")):
+        		matches.append(costar["name"])
 
         # Delete temp
         self.DB.run_cmd("DELETE temp;")
 
-        # Find actor list for each movie and add to list
-        for movie in movies:
-            # Get actor list
-            movie = self.DB.run_cmd("temp <- select (id == " + movie + ") movies;")
-            for m in movie:
-                actors = self.StringToList(movie[m]["actors"])
-                name = m
-            self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
-
-            # Add each actor to costar dictionary and update number of appearances
-            for a in actors:
-                # Only add if a is not input actor
-                if a != actor:
-                    # If actor is already in list, increment appearances
-                    if a in costar_list:
-                        costar_list[a] = costar_list[a] + 1
-                    # Add actor to list
-                    else:
-                        costar_list[a] = 1
-
-        # Look through costar_list and return costars with num of appearances
-        costar_constellation = []
-        for costar,appearances in costar_list.items():
-            if appearances == num:
-                costar_constellation.append(costar)
-
-        # Get names from ID numbers
-        for i in range(len(costar_constellation)):
-            star = self.DB.run_cmd("temp <- select (id == " + costar_constellation[i] + ") actors;")
-            for s in star:
-                costar_constellation[i] = star[s]["name"]
-                name = s
-            self.DB.run_cmd("DELETE FROM temp WHERE id == " + name + ";")
-
-        #print(costar_constellation)
-
-        return costar_constellation
+        return ", ".join(matches).replace("_", " ")
 
     def __init__(self) :
         self.DB = JSON_Parser.DB()
         self.engine = regex_lexicon.Lexer()
-
-
-def Main() :
-    queries = Queries()
-    # print(queries.BaconNumber("Al Pacino", "Tommy Wiseau"))
-    # print(queries.BaconNumber("Kevin Bacon", "John Cena"))
-    # print(queries.BaconNumber("Mary Pickford", "Kevin Bacon"))
-    # print(queries.BaconNumber("Dwayne Johnson", "Robin Williams"))
-    # print(queries.Typecasting("James Gandolfini"))
-    # print(queries.BestWorstDays("John Cena"))
-
-Main()
