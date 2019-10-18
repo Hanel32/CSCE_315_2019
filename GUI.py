@@ -97,7 +97,7 @@ class Example(QWidget):
             self.output.setEnabled(True)
         elif(self.lbl.text() == "Typecasting"):
             #Call Typecasting function
-            string = queries.TypeCasting(queries,textBox1)
+            string = queries.Typecasting(queries,textBox1)
             self.output.setText(string)
             self.output.setEnabled(True)
         elif(self.lbl.text() == "Cover Roles"):
