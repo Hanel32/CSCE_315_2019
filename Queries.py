@@ -5,11 +5,13 @@ import string
 
 class Queries:
 
-    class StepToActorB :
-        def __init__(self, number, name, movie):
+    # These are all stored as ID numbers (nunber is baconNumber)
+    class ActorNode :
+        def __init__(self, idNum, parentId, connectingMovie, number) :
+            self.idNum = idNum
+            self.parentId = parentId
+            self.connectingMovie = connectingMovie
             self.number = number
-            self.name = name
-            self.movie = movie
 
     def randomString(self, stringLength=10):
         letters = string.ascii_lowercase
@@ -20,46 +22,49 @@ class Queries:
         return listFromString
 
     # Actually performs the Bacon Number calculation
-    def BaconNumberRecursive(self, actorB, actorsTable, moviesTable, actorsList, baconNumber) :
+    def BaconNumberRecursive(self, actorB, actorsTable, moviesTable, actorsList, baconNumber, actorNodes) :
 
         baconNumber += 1
-        print("bacon number: " + str(baconNumber))
-
-        # Make empty list of some data structure that holds the bacon number, an actor name, and a movie
+        # Make empty list of ActorNodes
         pathToActorB = []
         # Make empty list of actor IDs
         actorIDs = []
 
+        # For each actor, check each movie, and for each movie, check its cast
         for sourceActor in actorsList :
             movieList = self.StringToList(actorsTable[sourceActor]['movies'])
             for movie in movieList :
                 actorList = self.StringToList(moviesTable[movie]['actors'])
                 for actor in actorList :
                     actorName = actorsTable[actor]['name'].replace(" ", "_")
-                    #print(actorName)
-                    # add actor's ID to list (skip duplicates)
+                    # Skips duplicates to save needless execution
                     if not actor in actorIDs :
                         actorIDs.append(actor)
+                        newActorNode = self.ActorNode(actor, sourceActor, movie, baconNumber)
+                        actorNodes.append(newActorNode)
+                    # Found the actor searching for
                     if actorName == actorB :
-                        # add Bacon Number, actor's name, movie to the list at start
-                        newStep = self.StepToActorB(baconNumber, actorsTable[sourceActor]['name'].replace(" ", "_"), moviesTable[movie]['title'])
-                        pathToActorB.append(newStep)
+                        newActor = self.ActorNode(actor, sourceActor, movie, baconNumber)
+                        pathToActorB.append(newActor)
                         return pathToActorB
 
-        # newMovieList = []
-        # for actorId in actorIDs :
-        #     newMovieList += self.StringToList(actorsTable[actorId]['movies'])
+        # Walks through backwards from the bottom of the list up to the root, storing the path taken
+        currentActor = self.BaconNumberRecursive(actorB, actorsTable, moviesTable, actorIDs, baconNumber, actorNodes)[0]
+        baconIndex = currentActor.number
 
-        # # removes duplicate movies
-        # newMovieList = list(dict.fromkeys(newMovieList))
+        while baconIndex >= baconNumber :
+            pathToActorB.append(currentActor)
+            for item in reversed(actorNodes) :
+                if item.idNum == currentActor.parentId :
+                    #parentActor = item
+                    currentActor = item
+                    break
+            baconIndex -= 1
 
-        pathToActorB += self.BaconNumberRecursive(actorB, actorsTable, moviesTable, actorIDs, baconNumber)
         return pathToActorB
 
     # Calls the actual worker function, and interprets the output into a string
     def BaconNumber(self, actorAOrig, actorBOrig) : # These are the actor's names as strings
-
-        print("Bacon Number called")
 
         actorA = actorAOrig.replace(" ", "_")
         actorB = actorBOrig.replace(" ", "_")
@@ -82,18 +87,24 @@ class Queries:
             movieListA = self.StringToList(actorAData[key]['movies'])
             actorAID = key
 
+        # Used for the sake of recursive structure
         actorList = []
         actorList.append(actorAID)
+        actorNodes = []
+        startingActorNode = self.ActorNode(actorAID, -1, -1, 1)
+        actorNodes.append(startingActorNode)
 
-        baconPath = self.BaconNumberRecursive(actorB, actorsTable, moviesTable, actorList, 0)
+        # Call the worker function
+        baconPath = self.BaconNumberRecursive(actorB, actorsTable, moviesTable, actorList, 0, actorNodes)
 
-        retString = "Bacon Number: " + str(baconPath[-1].number) + '\n' + "Path: " + actorAOrig + " -> "
+        retString = "Bacon Number: " + str(baconPath[0].number) + '\n' + "Path: " + actorAOrig + " -> "
 
-        # index = 0
-        # while index < len(baconPath) - 1 :
-        for item in baconPath :
-            retString += item.movie.replace("_", " ") + " -> " + item.name.replace("_", " ")
-            # index += 1
+        # Reversed because the list is returned with the final node first and the first node last
+        for item in reversed(baconPath) :
+            retString += moviesTable[item.connectingMovie]['title'].replace("_", " ") + " -> " + actorsTable[item.idNum]['name'].replace("_", " ") + " -> "
+
+        # Removes the final arrow
+        retString = retString[:-4]
 
         return retString
 
@@ -288,7 +299,8 @@ def Main() :
     queries = Queries()
     # print(queries.BaconNumber("Uwe Boll", "Christopher Lee"))
     # print(queries.BaconNumber("Kevin Bacon", "John Cena"))
-    # print("Bacon Number done")
-    print(queries.Typecasting("Christopher Lee"))
+    # print(queries.BaconNumber("Mary Pickford", "Kevin Bacon"))
+    # print(queries.BaconNumber("Dwayne Johnson", "Robin Williams"))
+    # print(queries.Typecasting("James Gandolfini"))
 
 Main()
