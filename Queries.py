@@ -50,15 +50,22 @@ class Queries:
 
         # Walks through backwards from the bottom of the list up to the root, storing the path taken
         currentActor = self.BaconNumberRecursive(actorB, actorsTable, moviesTable, actorIDs, baconNumber, actorNodes)[0]
+
+        if baconNumber != 1:
+            pathToActorB.append(currentActor)
+            return pathToActorB
+
         baconIndex = currentActor.number
 
         while baconIndex >= baconNumber :
             pathToActorB.append(currentActor)
-            for item in reversed(actorNodes) :
+
+            #if baconIndex == baconNumber :
+            for item in actorNodes :
                 if item.idNum == currentActor.parentId :
-                    #parentActor = item
                     currentActor = item
                     break
+
             baconIndex -= 1
 
         return pathToActorB
