@@ -216,9 +216,7 @@ class DB(object):
             self.run_cmd("WRITE movies;")
             self.run_cmd("WRITE actors;")
             self.run_cmd("WRITE characters;")
-            
         
-DB()
         
         
         
